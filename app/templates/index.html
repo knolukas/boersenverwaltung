@@ -2,6 +2,9 @@
 
 {% block content %}
     <h>Hi, {{ current_user.username }}!</h>
+    {% if current_user.admin_tag %}
+    <p>ADMIN-VIEW</p>
+    {% endif %}
     <h1>Market-Overview</h1>
 {#    <form action="" method="post">#}
 {#        {{ form.hidden_tag() }}#}
@@ -37,7 +40,7 @@
         <tbody>
             {% for market in markets %}
             <tr>
-                <td>{{ market.market_name }}</td>
+                <td><a href="{{ url_for('market', market_id=market.market_id) }}">{{ market.market_name }}</a></td>
                 <td>{{ market.market_id }}</td>
                 <td>{{ market.market_country }}</td>
                 <td>{{ market.market_currency_id }}</td>
@@ -51,5 +54,7 @@
         </tbody>
     </table>
 
+    {% if current_user.admin_tag %}
     <p>Add Market? <a href="{{ url_for('createmarket') }}">Click here to Create a New Market!</a></p>
+    {% endif %}
 {% endblock %}

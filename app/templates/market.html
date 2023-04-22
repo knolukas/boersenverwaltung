@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <table>
+        <tr>
+            <td>
+                <h1>Market: {{ market.market_name }}</h1>
+                {% if market.market_id %}<p>Market ID: {{ market.market_id }}</p>{% endif %}
+                {% if market.market_name %}<p>Market Name: {{ market.market_name}}</p>{% endif %}
+                {% if market.market_currency_id %}<p>Market Currency: {{ market.market_currency_id}}</p>{% endif %}
+                {% if market.market_fee %}<p>Market fee: {{ market.market_fee}}</p>{% endif %}
+                {% if market.market_country %}<p>Market country: {{ market.market_country}}</p>{% endif %}
+                {% if market.opens_at %}<p>Market Opening Hours: {{ market.opens_at}} - {{ market.closes_at}}</p>{% endif %}
+            </td>
+        </tr>
+    </table>
+    <h1>Securities</h1>
+    -Tabelle ergänzen-
+    <h1>Last Transactions</h1>
+    -Tabelle ergänzen-
+    <hr>
+{% endblock %}

@@ -69,8 +69,9 @@ def register():
 
 @app.route('/createmarket', methods=['GET', 'POST'])
 def createmarket():
-    # if current_user.is_authenticated:
-    #     return redirect(url_for('index'))
+    if not current_user.admin_tag:
+        flash("Insufficient permission!")
+        return redirect(url_for('index'))
     form = CreateNewMarketForm()
     if form.validate_on_submit():
         market = Market(market_name=form.market_name.data, opens_at=form.opens_at.data, closes_at=form.closes_at.data,
@@ -81,6 +82,13 @@ def createmarket():
         flash('New market has been created!')
         return redirect(url_for('index'))
     return render_template('create_market.html', title='Create Market', form=form)
+
+
+@app.route('/markets/<market_id>')
+@login_required
+def market(market_id):
+    market = Market.query.filter_by(market_id=market_id).first_or_404()
+    return render_template('market.html', market=market)
 
 
 @app.route('/user/<username>')
@@ -105,9 +113,10 @@ def edit_profile():
         form.username.data = current_user.username
         form.about_me.data = current_user.about_me
         return render_template('edit_profile.html', title='Edit Profile', form=form)
+
+
 @app.before_request
 def before_request():
     if current_user.is_authenticated:
         current_user.last_seen = datetime.utcnow()
         db.session.commit()
-

@@ -32,6 +32,13 @@
             <span style="color: red;">[{{ error }}]</span>
             {% endfor %}
         </p>
+        <p>
+            {{ form.admin_tag.label }}<br>
+            {{ form.admin_tag(size=32) }}<br>
+            {% for error in form.admin_tag.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
         <p>{{ form.submit() }}</p>
     </form>
 {% endblock %}
