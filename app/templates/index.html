@@ -1,21 +1,55 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Hi, {{ current_user.username }}!</h1>
-    <form action="" method="post">
-        {{ form.hidden_tag() }}
-        <p>
-            {{ form.post.label }}<br>
-            {{ form.post(cols=32, rows=4) }}<br>
-            {% for error in form.post.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+    <h>Hi, {{ current_user.username }}!</h>
+    <h1>Market-Overview</h1>
+{#    <form action="" method="post">#}
+{#        {{ form.hidden_tag() }}#}
+{#        <p>#}
+{#            {{ form.post.label }}<br>#}
+{#            {{ form.post(cols=32, rows=4) }}<br>#}
+{#            {% for error in form.post.errors %}#}
+{#            <span style="color: red;">[{{ error }}]</span>#}
+{#            {% endfor %}#}
+{#        </p>#}
+{#        <p>{{ form.submit() }}</p>#}
+{#    </form>#}
+{#    {% for post in posts %}#}
+{#    <p>#}
+{#    {{ post.author.username }} says: <b>{{ post.body }}</b>#}
+{#    </p>#}
+{#    {% endfor %}#}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>ID</th>
+                <th>Country</th>
+                <th>Currency (ID)</th>
+                <th>Market-Fees</th>
+                <th>Number of Securities</th>
+                <th>Number of Companies</th>
+                <th>Opens at</th>
+                <th>Closes at</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for market in markets %}
+            <tr>
+                <td>{{ market.market_name }}</td>
+                <td>{{ market.market_id }}</td>
+                <td>{{ market.market_country }}</td>
+                <td>{{ market.market_currency_id }}</td>
+                <td>{{ market.market_fee}}</td>
+                <td>-missing-</td>
+                <td>-missing-</td>
+                <td>{{ market.opens_at }}</td>
+                <td>{{ market.closes_at }}</td>
+            </tr>
             {% endfor %}
-        </p>
-        <p>{{ form.submit() }}</p>
-    </form>
-    {% for post in posts %}
-    <p>
-    {{ post.author.username }} says: <b>{{ post.body }}</b>
-    </p>
-    {% endfor %}
+        </tbody>
+    </table>
+
+    <p>Add Market? <a href="{{ url_for('createmarket') }}">Click here to Create a New Market!</a></p>
 {% endblock %}

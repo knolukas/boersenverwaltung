@@ -1,8 +1,8 @@
 from app import app, db
-from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm
+from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, CreateNewMarketForm
 from flask import render_template, flash, redirect, url_for, request
 from flask_login import current_user, login_user, logout_user
-from app.models import User, Post
+from app.models import User, Post, Market
 from flask_login import login_required
 from werkzeug.urls import url_parse
 from datetime import datetime
@@ -20,7 +20,8 @@ def index():
         flash('Your post is now live!')
         return redirect(url_for('index'))
     posts = Post.query.all()
-    return render_template('index.html', title='Home', form=form, posts=posts)
+    markets = Market.query.all()
+    return render_template('index.html', title='Home', form=form, posts=posts, markets=markets)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -63,7 +64,23 @@ def register():
         db.session.commit()
         flash('Congratulations, you are now a registered user!')
         return redirect(url_for('login'))
-    return render_template('register.html', title = 'Register', form=form)
+    return render_template('register.html', title='Register', form=form)
+
+
+@app.route('/createmarket', methods=['GET', 'POST'])
+def createmarket():
+    # if current_user.is_authenticated:
+    #     return redirect(url_for('index'))
+    form = CreateNewMarketForm()
+    if form.validate_on_submit():
+        market = Market(market_name=form.market_name.data, opens_at=form.opens_at.data, closes_at=form.closes_at.data,
+                        market_currency_id=form.market_currency_id.data, market_country=form.market_country.data,
+                        market_fee=form.market_fee.data)
+        db.session.add(market)
+        db.session.commit()
+        flash('New market has been created!')
+        return redirect(url_for('index'))
+    return render_template('create_market.html', title='Create Market', form=form)
 
 
 @app.route('/user/<username>')

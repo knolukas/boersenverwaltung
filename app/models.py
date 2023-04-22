@@ -40,6 +40,19 @@ class Post(db.Model):
         return '<Post {}>'.format(self.body)
 
 
+class Market(db.Model):
+    market_id = db.Column(db.Integer, primary_key=True)
+    market_name = db.Column(db.Text, unique=True, nullable=False)
+    opens_at = db.Column(db.Time, nullable=False)
+    closes_at = db.Column(db.Time, nullable=False)
+    market_currency_id = db.Column(db.Integer, nullable=False)
+    market_country = db.Column(db.Text, nullable=False)
+    market_fee = db.Column(db.Float, nullable=False)
+
+    def __repr__(self):
+        return '<Market {}>'.format(self.market_name)
+
+
 @login.user_loader
 def load_user(id):
     return User.query.get(int(id))
