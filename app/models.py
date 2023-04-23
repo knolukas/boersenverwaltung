@@ -11,8 +11,6 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
     password_hash = db.Column(db.String(128))
-    posts = db.relationship('Post', backref='author', lazy='dynamic')
-    about_me = db.Column(db.String(140))
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     admin_tag = db.Column(db.Boolean, default=False)
 
@@ -26,8 +24,8 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def avatar(self, size):
-        digest = md5(self.email.lower().encode('utf-8')).hexdigest()
-        return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(
+        digest = md5(self.username.lower().encode('utf-8')).hexdigest()
+        return 'https://www.gravatar.com/avatar/{}?s={}'.format(
             digest, size)
 
 
@@ -53,6 +51,9 @@ class Market(db.Model):
     def __repr__(self):
         return '<Market {}>'.format(self.market_name)
 
+
+
+class Transactions(db.Model):
 
 @login.user_loader
 def load_user(id):
