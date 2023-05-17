@@ -13,16 +13,16 @@ import sqlite3
 @app.route('/index', methods=['GET', 'POST'])
 @login_required  # nur sichtbar für eingeloggte User
 def index():
-    form = PostForm()
-    if form.validate_on_submit():
-        post = Post(body=form.post.data, author=current_user)
-        db.session.add(post)
-        db.session.commit()
-        flash('Your post is now live!')
-        return redirect(url_for('index'))
-    posts = Post.query.all()
+    # form = PostForm()
+    # if form.validate_on_submit():
+    #     post = Post(body=form.post.data, author=current_user)
+    #     db.session.add(post)
+    #     db.session.commit()
+    #     flash('Your post is now live!')
+    #     return redirect(url_for('index'))
+    # posts = Post.query.all()
     markets = Market.query.all()
-    return render_template('index.html', title='Home', form=form, posts=posts, markets=markets)
+    return render_template('index.html', title='Home', markets=markets)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -139,8 +139,8 @@ def time_to_string(time_obj):
 
 @app.route('/markets/<market_id>', methods=['GET'])
 # @login_required
-def market_info(market_id):
-    market = Market.query.filter_by(market_id=market_id).first_or_404()
+def market(market_id):
+    markets = Market.query.filter_by(market_id=market_id).first_or_404()
     transactions = Transactions.query \
         .filter_by(market_id=market_id).all()  # mit .limit(10).all() kann auf 10 beschränkt werden
     offer = Offer.query.filter_by(market_id=market_id).all()
@@ -149,12 +149,12 @@ def market_info(market_id):
 
     if request.headers.get('Accept') == 'application/json':
         json_data.append({
-            'market_id': market.market_id,
-            'market_name': market.market_name,
-            'opens_at': time_to_string(market.opens_at),
-            'closes_at': time_to_string(market.closes_at),
-            'market_currency_id': market.market_currency_id,
-            'market_fee': market.market_fee
+            'market_id': markets.market_id,
+            'market_name': markets.market_name,
+            'opens_at': time_to_string(markets.opens_at),
+            'closes_at': time_to_string(markets.closes_at),
+            'market_currency_id': markets.market_currency_id,
+            'market_fee': markets.market_fee
         })
 
     # JSON Ausgabe
@@ -210,7 +210,7 @@ def markets_transactions():  # eventuell id von einer börse mitgeben
 
 # PUT Schnittstellen #
 
-@app.route('/markets/<market_id>/buy', methods=['PUT'])
-# @login_required
-def buy(market_id):
+# @app.route('/markets/<market_id>/buy', methods=['PUT'])
+# # @login_required
+# def buy(market_id):
 
