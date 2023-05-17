@@ -1,11 +1,12 @@
 from app import app, db
 from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, CreateNewMarketForm
-from flask import render_template, flash, redirect, url_for, request
+from flask import render_template, flash, redirect, url_for, request, jsonify
 from flask_login import current_user, login_user, logout_user
-from app.models import User, Post, Market
+from app.models import User, Post, Market, Transactions, Offer
 from flask_login import login_required
 from werkzeug.urls import url_parse
 from datetime import datetime
+import sqlite3
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -84,13 +85,6 @@ def createmarket():
     return render_template('create_market.html', title='Create Market', form=form)
 
 
-@app.route('/markets/<market_id>')
-@login_required
-def market(market_id):
-    market = Market.query.filter_by(market_id=market_id).first_or_404()
-    return render_template('market.html', market=market)
-
-
 @app.route('/user/<username>')
 @login_required
 def user(username):
@@ -120,3 +114,103 @@ def before_request():
     if current_user.is_authenticated:
         current_user.last_seen = datetime.utcnow()
         db.session.commit()
+
+
+# GET Methods #
+@app.route('/markets/<market_id>/offer', methods=['GET'])  # login required???
+def get_market_offer(market_id):
+    data = Offer.query.filter_by(market_id=market_id).all()
+
+    json_data = []
+
+    for entry in data:
+        json_data.append({
+            'security_id': entry.security_id,
+            # 'market_id': entry.market_id,
+            'amount': entry.amount
+        })
+
+    return jsonify(json_data)
+
+
+def time_to_string(time_obj):
+    return time_obj.strftime('%H:%M:%S')
+
+
+@app.route('/markets/<market_id>', methods=['GET'])
+# @login_required
+def market_info(market_id):
+    market = Market.query.filter_by(market_id=market_id).first_or_404()
+    transactions = Transactions.query \
+        .filter_by(market_id=market_id).all()  # mit .limit(10).all() kann auf 10 beschränkt werden
+    offer = Offer.query.filter_by(market_id=market_id).all()
+
+    json_data = []
+
+    if request.headers.get('Accept') == 'application/json':
+        json_data.append({
+            'market_id': market.market_id,
+            'market_name': market.market_name,
+            'opens_at': time_to_string(market.opens_at),
+            'closes_at': time_to_string(market.closes_at),
+            'market_currency_id': market.market_currency_id,
+            'market_fee': market.market_fee
+        })
+
+    # JSON Ausgabe
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify(json_data)
+
+    # HTML Render Ausgabe
+    return render_template('market.html', market=market, transactions=transactions, offer=offer)
+
+
+@app.route('/markets', methods=['GET'])
+# @login_required
+def markets_all():
+    markets = Market.query.all()
+    json_data = {}
+
+    for entry in markets:
+        market_id = entry.market_id
+        if market_id not in json_data:
+            json_data[market_id] = []
+
+        json_data[market_id].append({
+            'market_id': entry.market_id,
+            'market_name': entry.market_name,
+            'opens_at': time_to_string(entry.opens_at),
+            'closes_at': time_to_string(entry.closes_at),
+            'market_currency_id': entry.market_currency_id,
+            'market_fee': entry.market_fee
+        })
+
+    return jsonify(json_data)
+
+
+@app.route('/markets/transactions', methods=['GET'])
+# @login_required
+def markets_transactions():  # eventuell id von einer börse mitgeben
+    transactions = Transactions.query.all()
+    json_data = []
+
+    for entry in transactions:
+        json_data.append([{
+            'transaction_id': entry.transaction_id,
+            'timestamp': time_to_string(entry.timestamp),
+            'security_id': entry.security_id,
+            'security_price': entry.security_price,
+            'security_amount': entry.security_amount,
+            'transaction_type': entry.transaction_type,
+            'market_id': entry.market_id
+        }])
+
+    return jsonify(json_data)
+
+
+# PUT Schnittstellen #
+
+@app.route('/markets/<market_id>/buy', methods=['PUT'])
+# @login_required
+def buy(market_id):
+

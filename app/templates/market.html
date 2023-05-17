@@ -14,9 +14,47 @@
             </td>
         </tr>
     </table>
-    <h1>Securities</h1>
-    -Tabelle ergänzen-
-    <h1>Last Transactions</h1>
-    -Tabelle ergänzen-
-    <hr>
+    <table>
+         <thead>
+            <tr>
+                <th>Security Name (Noch ID)</th>
+                <th>Market Name (Noch ID)</th>
+                <th>Available Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for offer in offer %}
+                <tr>
+                    <td>{{ offer.security_id }}</td>
+                    <td>{{ offer.market_id }}</td>
+                    <td>{{ offer.amount }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+     <table>
+         <thead>
+            <tr>
+                <th>Transaction ID</th>
+                <th>Timestamp</th>
+                <th>Security Name (noch ID)</th>
+                <th>Security Price</th>
+                <th>Security Amount</th>
+                <th>Transaction Type</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.transaction_id }}</td>
+                    <td>{{ transaction.timestamp }}</td>
+                    <td>{{ transaction.security_id }}</td>
+                    <td>{{ transaction.security_price }}</td>
+                    <td>{{ transaction.security_amount }}</td>
+                    <td>{{ transaction.transaction_type}}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
 {% endblock %}

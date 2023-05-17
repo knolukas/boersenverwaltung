@@ -4,15 +4,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from app import login
 from hashlib import md5
+from sqlalchemy import Column, Integer, DateTime, Boolean, String, Float, Text, ForeignKey, Time
 
 
 class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), index=True, unique=True)
-    email = db.Column(db.String(120), index=True, unique=True)
-    password_hash = db.Column(db.String(128))
-    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
-    admin_tag = db.Column(db.Boolean, default=False)
+    id = Column(Integer, primary_key=True)
+    username = Column(String(64), index=True, unique=True)
+    email = Column(String(120), index=True, unique=True)
+    password_hash = Column(String(128))
+    last_seen = Column(DateTime, default=datetime.utcnow)
+    admin_tag = Column(Boolean, default=False)
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -30,30 +31,49 @@ class User(UserMixin, db.Model):
 
 
 class Post(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    body = db.Column(db.String(140))
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    id = Column(Integer, primary_key=True)
+    body = Column(String(140))
+    timestamp = Column(DateTime, index=True, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey('user.id'))
 
     def __repr__(self):
         return '<Post {}>'.format(self.body)
 
 
 class Market(db.Model):
-    market_id = db.Column(db.Integer, primary_key=True)
-    market_name = db.Column(db.Text, unique=True, nullable=False)
-    opens_at = db.Column(db.Time, nullable=False)
-    closes_at = db.Column(db.Time, nullable=False)
-    market_currency_id = db.Column(db.Integer, nullable=False)
-    market_country = db.Column(db.Text, nullable=False)
-    market_fee = db.Column(db.Float, nullable=False)
+    market_id = Column(Integer, primary_key=True)
+    market_name = Column(Text, unique=True, nullable=False)
+    opens_at = Column(Time, nullable=False)
+    closes_at = Column(Time, nullable=False)
+    market_currency_id = Column(Integer, nullable=False)
+    market_country = Column(Text, nullable=False)
+    market_fee = Column(Float, nullable=False)
 
     def __repr__(self):
         return '<Market {}>'.format(self.market_name)
 
 
-
 class Transactions(db.Model):
+    transaction_id = Column(Integer, primary_key=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    security_id = Column(Integer, nullable=False)
+    security_price = Column(Float, nullable=False)
+    security_amount = Column(Integer, nullable=False)
+    transaction_type = Column(Text, nullable=False)
+    market_id = Column(Integer, ForeignKey('market.market_id'))
+
+    def __repr__(self):
+        return '<Transaction {}>'.format(self.transaction_id)
+
+
+class Offer(db.Model):
+    security_id = Column(Integer, nullable=False, primary_key=True)
+    market_id = Column(Integer, nullable=False, primary_key=True)
+    amount = Column(Integer, nullable=False)
+
+    def __repr__(self):
+        return '<Offer {}>'.format(self.security_id, self.market_id)
+
 
 @login.user_loader
 def load_user(id):

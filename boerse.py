@@ -1,5 +1,5 @@
 from app import app, db
-from app.models import User, Post, Market
+from app.models import User, Post, Market, Transactions, Offer
 
 if __name__ == '__main__':
     app.run(debug=True, port=50052)  # josef (depot) 50050, andi (firmen) 50051

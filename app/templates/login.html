@@ -13,7 +13,7 @@
         </p>
         <p>
             {{ form.password.label }}<br>
-            {{ form.password(size=32) }}
+            {{ form.password(size=32, autocomplete="current-password") }}
              {% for error in form.password.errors %}
             <span style="color: red;">[{{ error }}]</span>
             {% endfor %}
