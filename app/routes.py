@@ -1,3 +1,7 @@
+import json
+
+import requests
+
 from app import app, db
 from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, CreateNewMarketForm
 from flask import render_template, flash, redirect, url_for, request, jsonify
@@ -140,7 +144,7 @@ def time_to_string(time_obj):
 @app.route('/markets/<market_id>', methods=['GET'])
 # @login_required
 def market(market_id):
-    markets = Market.query.filter_by(market_id=market_id).first_or_404()
+    market = Market.query.filter_by(market_id=market_id).first_or_404()
     transactions = Transactions.query \
         .filter_by(market_id=market_id).all()  # mit .limit(10).all() kann auf 10 beschränkt werden
     offer = Offer.query.filter_by(market_id=market_id).all()
@@ -149,12 +153,12 @@ def market(market_id):
 
     if request.headers.get('Accept') == 'application/json':
         json_data.append({
-            'market_id': markets.market_id,
-            'market_name': markets.market_name,
-            'opens_at': time_to_string(markets.opens_at),
-            'closes_at': time_to_string(markets.closes_at),
-            'market_currency_id': markets.market_currency_id,
-            'market_fee': markets.market_fee
+            'market_id': market.market_id,
+            'market_name': market.market_name,
+            'opens_at': time_to_string(market.opens_at),
+            'closes_at': time_to_string(market.closes_at),
+            'market_currency_id': market.market_currency_id,
+            'market_fee': market.market_fee
         })
 
     # JSON Ausgabe
@@ -210,7 +214,127 @@ def markets_transactions():  # eventuell id von einer börse mitgeben
 
 # PUT Schnittstellen #
 
-# @app.route('/markets/<market_id>/buy', methods=['PUT'])
-# # @login_required
-# def buy(market_id):
+@app.route('/markets/<market_id>/buy', methods=['PUT'])
+# @login_required
+def buy(market_id):
+    market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
 
+    refresh_offer(market_id)
+
+    data = request.json
+    security_id = data['security_id']
+    amount = data['amount']
+
+    entry = Offer.query.filter_by(market_id=market_id, security_id=security_id).first_or_404(
+        description="Wertpapier nicht vorhanden!")
+    availableAmount = entry.amount
+
+    url = 'http://127.0.0.1:50052/firmen/wertpapier/{}/kauf'.format(security_id)  # anpassen an Port der Firmenverwaltung
+
+    if amount > availableAmount:
+        message = "Es sind nur noch " + str(availableAmount) + " Stueck dieses Wertpapiers vorhanden! Erneut versuchen."
+
+        return jsonify({'message': message}), 400
+
+    else:
+        entry.amount = availableAmount - amount
+        data["market_fee"] = market.market_fee
+        response = requests.put(url, data=data, headers={'Content-Type': 'application/json'})
+        if response.status_code == 200:
+            db.session.commit()
+        else:
+            db.session.rollback()
+            return jsonify({'message': 'Fehler in der Anfrage!'}), 400
+
+        return jsonify({'message': 'Kauf war erfolgreich!'}), 200
+
+
+@app.route('/markets/<market_id>/sell', methods=['PUT'])
+# @login_required
+def sell(market_id):
+    market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
+
+    refresh_offer(market_id)
+
+    data = request.json
+    security_id = data['security_id']
+    amount = data['amount']
+
+    entry = Offer.query.filter_by(market_id=market_id, security_id=security_id).first()
+    url = 'http://127.0.0.1:50052/firmen/wertpapier/{}/verkauf'.format(
+        security_id)  # anpassen an Port der Firmenverwaltung
+
+    if entry:
+        entry.amount = entry.amount + amount
+        data["market_fee"] = market.market_fee
+        response = requests.put(url, data=data, headers={'Content-Type': 'application/json'})
+        if response.status_code == 200:
+            db.session.commit()
+            return jsonify(data), 200
+        else:
+            db.session.rollback()
+            return jsonify({'message': 'Fehler in der Anfrage!'}), 400
+
+    else:
+        return jsonify({'message': 'Wertpapier wird an dieser Boerse nicht gehandelt!'}), 400
+
+
+@app.route('/markets/<market_id>/refresh_offer')     # das ist eigentlich die POST Schnittstelle, muss noch angepasst werden
+def refresh_offer(market_id):
+    url = 'http://127.0.0.1:50052/firmen/wertpapiere/1'  # anpassen an Port der Firmenverwaltung
+    response = requests.get(url)
+    data = response.json()
+    if response.status_code == 200:
+        for entry in data:
+            security_id = entry['security_id']
+            amount = entry['amount']
+            if Offer.query.filter_by(security_id=security_id).first():
+                existing = Offer.query.filter_by(security_id=security_id).first()
+                existing.amount = amount
+            else:
+                newEntry = Offer(market_id=market_id, security_id=security_id, amount=amount)
+                db.session.add(newEntry)
+
+        db.session.commit()
+    else:
+        print("Es gab einen Fehler mit der Anfrage.")
+
+    return redirect(url_for('market', market_id=market_id))
+
+
+
+
+# Firmenverwaltung simulation
+@app.route('/firmen/wertpapiere/<market_id>', methods=['GET'])
+# @login_required
+def security_info(market_id):
+    return jsonify({
+        'security_id': 33,
+        'name': "aktie1",
+        'price': 100,
+        'comp_id': 1,
+        'amount': 99,
+        'market_id': 1,
+        'currency': "EUR"
+    },
+        {
+            'security_id': 1,
+            'name': "aktie1",
+            'price': 100,
+            'comp_id': 1,
+            'amount': 2222,
+            'market_id': 1,
+            'currency': "EUR"
+        }
+    )
+
+
+@app.route('/firmen/wertpapier/<security_id>/kauf', methods=['PUT'])
+# @login_required
+def sold_info(security_id):
+    return '', 200
+
+@app.route('/firmen/wertpapier/<security_id>/verkauf', methods=['PUT'])
+# @login_required
+def buy_info(security_id):
+    return '', 200
