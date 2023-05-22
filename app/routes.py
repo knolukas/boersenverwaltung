@@ -229,7 +229,8 @@ def buy(market_id):
         description="Wertpapier nicht vorhanden!")
     availableAmount = entry.amount
 
-    url = 'http://127.0.0.1:50052/firmen/wertpapier/{}/kauf'.format(security_id)  # anpassen an Port der Firmenverwaltung
+    url = 'http://127.0.0.1:50052/firmen/wertpapier/{}/kauf'.format(
+        security_id)  # anpassen an Port der Firmenverwaltung
 
     if amount > availableAmount:
         message = "Es sind nur noch " + str(availableAmount) + " Stueck dieses Wertpapiers vorhanden! Erneut versuchen."
@@ -279,11 +280,10 @@ def sell(market_id):
         return jsonify({'message': 'Wertpapier wird an dieser Boerse nicht gehandelt!'}), 400
 
 
-@app.route('/markets/<market_id>/refresh_offer')     # das ist eigentlich die POST Schnittstelle, muss noch angepasst werden
+@app.route('/markets/<market_id>/refresh_offer', methods=['POST'])  # das ist eigentlich die POST Schnittstelle, muss noch angepasst werden
 def refresh_offer(market_id):
-    url = 'http://127.0.0.1:50052/firmen/wertpapiere/1'  # anpassen an Port der Firmenverwaltung
-    response = requests.get(url)
-    data = response.json()
+    #url = 'http://127.0.0.1:50052/firmen/wertpapiere/1'  #war als GET konfiguriert, ist jetzt aber ein POST der mit daten schickt
+    data = request.json()
     if response.status_code == 200:
         for entry in data:
             security_id = entry['security_id']
@@ -302,14 +302,12 @@ def refresh_offer(market_id):
     return redirect(url_for('market', market_id=market_id))
 
 
-
-
 # Firmenverwaltung simulation
 @app.route('/firmen/wertpapiere/<market_id>', methods=['GET'])
 # @login_required
 def security_info(market_id):
     return jsonify({
-        'security_id': 33,
+        'security_id': 3,
         'name': "aktie1",
         'price': 100,
         'comp_id': 1,
@@ -322,17 +320,18 @@ def security_info(market_id):
             'name': "aktie1",
             'price': 100,
             'comp_id': 1,
-            'amount': 2222,
+            'amount': 1000,
             'market_id': 1,
             'currency': "EUR"
         }
-    )
+    ), 200
 
 
 @app.route('/firmen/wertpapier/<security_id>/kauf', methods=['PUT'])
 # @login_required
 def sold_info(security_id):
     return '', 200
+
 
 @app.route('/firmen/wertpapier/<security_id>/verkauf', methods=['PUT'])
 # @login_required
