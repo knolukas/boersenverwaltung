@@ -315,7 +315,7 @@ def refresh_offer(market_id):
     # daten schickt
     global message
     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
-    data = request.get_json()
+    data = request.json
 
     if data is not None:
         if isinstance(data, list):
