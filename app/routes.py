@@ -336,8 +336,8 @@ def refresh_offer(market_id):
             security_id = data['security_id']
             amount = data['amount']
 
-            if Offer.query.filter_by(security_id=security_id).first():
-                existing = Offer.query.filter_by(security_id=security_id).first()
+            if Offer.query.filter_by(security_id=security_id, market_id=market_id).first():
+                existing = Offer.query.filter_by(security_id=security_id, market_id=market_id).first()
                 existing.amount = amount
                 message = "Bestehendes Wertpapier aktualisiert!"
             else:
