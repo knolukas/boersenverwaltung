@@ -1,52 +1,57 @@
 {% extends "base.html" %}
 
 {% block content %}
+    <div class="container-fluid">
     <h>Hi, {{ current_user.username }}!</h>
-    {% if current_user.admin_tag %}
-    <p>ADMIN-VIEW</p>
-    {% endif %}
     <h1>Market-Overview</h1>
-{#    <form action="" method="post">#}
-{#        {{ form.hidden_tag() }}#}
-{#        <p>#}
-{#            {{ form.post.label }}<br>#}
-{#            {{ form.post(cols=32, rows=4) }}<br>#}
-{#            {% for error in form.post.errors %}#}
-{#            <span style="color: red;">[{{ error }}]</span>#}
-{#            {% endfor %}#}
-{#        </p>#}
-{#        <p>{{ form.submit() }}</p>#}
-{#    </form>#}
-{#    {% for post in posts %}#}
-{#    <p>#}
-{#    {{ post.author.username }} says: <b>{{ post.body }}</b>#}
-{#    </p>#}
-{#    {% endfor %}#}
 
-    <table>
+    <table class="table table-hover" id="market-table">
         <thead>
             <tr>
                 <th>Name</th>
                 <th>ID</th>
                 <th>Country</th>
-                <th>Currency (ID)</th>
-                <th>Market-Fees</th>
+                <th>Currency</th>
+                <th>Market-Fees
+                    <select id="currency-select">
+                        <option value="default">default</option>
+                        {% for currency in currencies %}
+                            <option value={{ currency.market_currency_code }}>
+                                {{ currency.market_currency_code }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </th>
                 <th>Number of Securities</th>
                 <th>Number of Companies</th>
-                <th>Opens at</th>
-                <th>Closes at</th>
+                <th>Opens at (CET)</th>
+                <th>Closes at (CET)</th>
             </tr>
         </thead>
+
         <tbody>
             {% for market in markets %}
             <tr>
                 <td><a href="{{ url_for('market', market_id=market.market_id) }}">{{ market.market_name }}</a></td>
                 <td>{{ market.market_id }}</td>
                 <td>{{ market.market_country }}</td>
-                <td>{{ market.market_currency_id }}</td>
-                <td>{{ market.market_fee}}</td>
-                <td>-missing-</td>
-                <td>-missing-</td>
+                <td class="currency">
+                    {% for currency in currencies %}
+                        {% if currency.market_currency_id == market.market_currency_id %}
+                            {{ currency.market_currency_code }}
+                        {% endif %}
+                    {% endfor %}
+                </td>
+                <td class="fee-cell" data-original-value="{{ market.market_fee }}">
+                    {{ "%.2f" % market.market_fee }}
+                    {% for currency in currencies %}
+                        {% if currency.market_currency_id == market.market_currency_id %}
+                            {{ currency.market_currency_code }}
+                        {% endif %}
+                    {% endfor %}
+                </td>
+                <td>{{ count_securities }}</td>
+                <td>{{ count_companies }}</td>
                 <td>{{ market.opens_at }}</td>
                 <td>{{ market.closes_at }}</td>
             </tr>
@@ -54,7 +59,51 @@
         </tbody>
     </table>
 
+    <script>
+      var selectElement = document.getElementById('currency-select');
+      var feeCells = document.getElementsByClassName('fee-cell');
+      var startCurrency = document.getElementsByClassName('currency');
+
+      selectElement.addEventListener('change', function() {
+        var selectedValue = selectElement.value;
+        convertFees(selectedValue);
+      });
+
+
+      function convertFees(selectedValue) {
+
+            const options = {method: 'GET', headers: {accept: 'application/json'}};
+          fetch('https://openexchangerates.org/api/latest.json?app_id=43189c6f48c64001a872ae078151984c&symbols=&prettyprint=false&show_alternative=false', options)
+                  .then(response => response.json())
+                    .then(data => {
+                        responseData = data;  //fetch ist asynchron und darum gibt man die response so mit
+                        updateFeeCells(selectedValue, responseData);
+                    })
+                  .catch(err => console.error(err));
+      }
+
+      function updateFeeCells(selectedValue, responseData) {
+          for (var i = 0; i < feeCells.length; i++) {
+            var feeCell = feeCells[i];
+            var originalValue = parseFloat(feeCell.dataset.originalValue);
+            var currency = startCurrency[i].textContent.trim();
+
+            inDollarValue = originalValue / responseData.rates[currency];
+
+            if (selectedValue === 'default') {
+              feeCell.textContent = originalValue.toFixed(2) +" "+ currency;
+            } else {
+              var conversionRate = responseData.rates[selectedValue];
+              var convertedValue = inDollarValue * conversionRate;
+              feeCell.textContent = convertedValue.toFixed(2) + ' ' + selectedValue;
+            }
+          }
+      }
+    </script>
+
     {% if current_user.admin_tag %}
-    <p>Add Market? <a href="{{ url_for('createmarket') }}">Click here to Create a New Market!</a></p>
+    <p> </p>
+    <p>Add Market? <a href="{{ url_for('createmarket') }}">Click Here to Create a New Market!</a></p>
     {% endif %}
+    </div>
 {% endblock %}

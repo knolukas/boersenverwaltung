@@ -1,3 +1,4 @@
+
 {% extends "bootstrap/base.html" %}
 
 {% block style %}
@@ -6,6 +7,13 @@
 
 <!DOCTYPE html>
 <html>
+<style>
+    .custom-container a{
+      font-size: 5px;
+      padding: 10px;
+    }
+  </style>
+
 {% block head %}
     {{ super() }}
     {% if title %}
@@ -25,6 +33,9 @@
         {% else %}
         <a href="{{ url_for('user', username=current_user.username) }}">Profile</a>
         <a href="{{ url_for('logout') }}">Logout</a>
+        {% endif %}
+        {% if current_user.admin_tag %}
+        (Admin)
         {% endif %}
     </div>
     <hr>

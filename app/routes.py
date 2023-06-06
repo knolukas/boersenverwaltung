@@ -6,10 +6,11 @@ from app import app, db
 from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, CreateNewMarketForm
 from flask import render_template, flash, redirect, url_for, request, jsonify
 from flask_login import current_user, login_user, logout_user
-from app.models import User, Post, Market, Transactions, Offer
+from app.models import User, Post, Market, Transactions, Offer, Currency
 from flask_login import login_required
 from werkzeug.urls import url_parse
 from datetime import datetime
+
 import sqlite3
 
 
@@ -26,7 +27,12 @@ def index():
     #     return redirect(url_for('index'))
     # posts = Post.query.all()
     markets = Market.query.all()
-    return render_template('index.html', title='Home', markets=markets)
+    currencies = Currency.query.all()
+    count_securities = 10
+    count_companies = 10
+    return render_template('index.html', title='Home', markets=markets, currencies=currencies,
+                           count_companies=count_companies, count_securities=count_securities
+                           )
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -151,6 +157,9 @@ def market(market_id):
         .limit(10) \
         .all()
     offer = Offer.query.filter_by(market_id=market_id).all()
+    id = Market.query.filter_by(market_id=market_id).first().market_currency_id
+    print(id)
+    currency = Currency.query.filter_by(market_currency_id=id).first()
 
     json_data = []
 
@@ -169,7 +178,8 @@ def market(market_id):
         return jsonify(json_data)
 
     # HTML Render Ausgabe
-    return render_template('market.html', market=market, transactions=transactions, offer=offer)
+    return render_template('market.html', market=market, transactions=transactions,
+                           offer=offer, currency=currency)
 
 
 @app.route('/markets', methods=['GET'])
@@ -295,6 +305,7 @@ def sell(market_id):
         entry.amount = entry.amount + amount
         data["market_fee"] = market.market_fee
         response = requests.put(url, data=data, headers={'Content-Type': 'application/json'})
+        print(data)
         if response.status_code == 200:
             newEntry = Transactions(security_id=security_id, security_price=security_price, security_amount=amount,
                                     transaction_type="Sell", market_id=market_id)
@@ -311,17 +322,15 @@ def sell(market_id):
 
 @app.route('/markets/<market_id>/offer', methods=['POST'])
 def refresh_offer(market_id):
-    # url = 'http://127.0.0.1:50052/firmen/wertpapiere/1'  #war als GET konfiguriert, ist jetzt aber ein POST der mir
-    # daten schickt
     global message
     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
-    data = request.json
+    data = request.get_json(force=True)
     print(data)
     if data is not None:
         if isinstance(data, list):
             # Daten sind eine Liste von Objekten
             for entry in data:
-                security_id = entry['security_id']
+                security_id = entry['id']
                 amount = entry['amount']
 
                 if Offer.query.filter_by(security_id=security_id).first():
@@ -333,7 +342,7 @@ def refresh_offer(market_id):
 
         elif isinstance(data, dict):
             # Daten sind ein einzelnes Objekt
-            security_id = data['security_id']
+            security_id = data['id']
             amount = data['amount']
 
             if Offer.query.filter_by(security_id=security_id, market_id=market_id).first():
@@ -365,6 +374,22 @@ def security_info(security_id):
         'currency': "EUR"}), 200
 
 
+@app.route('/markets/getcurrencies')
+def get_currencies():
+    url = "https://openexchangerates.org/api/currencies.json"
+    response = requests.get(url)
+    data = response.json()
+    keys = data.keys()
+
+    for entry in keys:
+        name = data[str(entry)]
+        newEntry = Currency(market_currency_name=name, market_currency_code=str(entry))
+        db.session.add(newEntry)
+
+    db.session.commit()
+    return '', 200
+
+
 @app.route('/firmen/wertpapiere/<market_id>', methods=['GET'])
 # @login_required
 def securities_info(market_id):
@@ -387,6 +412,9 @@ def securities_info(market_id):
             'currency': "EUR"
         }
     ), 200
+
+
+
 
 
 @app.route('/firmen/wertpapier/<security_id>/kauf', methods=['PUT'])

@@ -66,6 +66,16 @@ class Transactions(db.Model):
         return '<Transaction {}>'.format(self.transaction_id)
 
 
+class Currency(db.Model):
+    market_currency_id = Column(Integer, primary_key=True)
+    market_currency_name = Column(Text, nullable=False)
+    market_currency_code = Column(Text, nullable=False)
+
+
+    def __repr__(self):
+        return '<Currency {}>'.format(self.market_currency_id)
+
+
 class Offer(db.Model):
     security_id = Column(Integer, nullable=False, primary_key=True)
     market_id = Column(Integer, nullable=False, primary_key=True)
