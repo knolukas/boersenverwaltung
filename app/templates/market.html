@@ -8,7 +8,7 @@
                 {% if market.market_id %}<p>Market ID: {{ market.market_id }}</p>{% endif %}
                 {% if market.market_name %}<p>Market Name: {{ market.market_name}}</p>{% endif %}
                 {% if market.market_currency_id %}<p>Market Currency: {{ currency.market_currency_name }} ({{ currency.market_currency_code }})</p>{% endif %}
-                {% if market.market_fee %}<p>Market fee: {{ market.market_fee}} {{ currency.market_currency_code }}</p>{% endif %}
+                {% if market.market_fee %}<p>Market fee: {{ "%.2f" % market.market_fee}} {{ currency.market_currency_code }}</p>{% endif %}
                 {% if market.market_country %}<p>Market country: {{ market.market_country}}</p>{% endif %}
                 {% if market.opens_at %}<p>Market Opening Hours (CET): {{ market.opens_at}} - {{ market.closes_at}}</p>{% endif %}
             </td>
