@@ -100,10 +100,12 @@
           }
       }
     </script>
-
     {% if current_user.admin_tag %}
     <p> </p>
-    <p>Add Market? <a href="{{ url_for('createmarket') }}">Click Here to Create a New Market!</a></p>
+    <a href="{{ url_for('createmarket') }}" class="btn btn-primary">Create a New Market</a>
     {% endif %}
+    <p> </p>
+    <a href="{{ url_for('create_csv') }}" class="btn btn-primary">Export Markets to CSV</a>
+
     </div>
 {% endblock %}

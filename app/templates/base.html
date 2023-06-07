@@ -5,14 +5,9 @@
     {{ super() }}
 {% endblock %}
 
+
 <!DOCTYPE html>
 <html>
-<style>
-    .custom-container a{
-      font-size: 5px;
-      padding: 10px;
-    }
-  </style>
 
 {% block head %}
     {{ super() }}
@@ -25,6 +20,33 @@
 {% endblock %}
 
 {% block body %}
+     {% block scripts %}
+        {{ super() }}
+        <script>
+            function updateTime() {
+                var currentTime = new Date();
+                var hours = ('0' + currentTime.getHours()).slice(-2);
+                var minutes = ('0' + currentTime.getMinutes()).slice(-2);
+                var seconds = ('0' + currentTime.getSeconds()).slice(-2);
+                var formattedTime = hours + ":" + minutes + ":" + seconds;
+
+                document.getElementById("current-time").textContent = formattedTime;
+
+                var year = currentTime.getFullYear();
+                var month = ('0' + (currentTime.getMonth() + 1)).slice(-2);
+                var day = ('0' + currentTime.getDate()).slice(-2);
+                var formattedDate = day + "." + month + "." + year + " | ";
+
+                var days = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+                var dayOfWeek = days[currentTime.getDay()];
+
+                document.getElementById("current-date").textContent = dayOfWeek + ", " + formattedDate;
+            }
+
+            setInterval(updateTime, 1000);
+        </script>
+    {% endblock %}
+
     <div>
         Boersenverwaltung:
         <a href="{{ url_for('index') }}">Home</a>
@@ -37,7 +59,11 @@
         {% if current_user.admin_tag %}
         (Admin)
         {% endif %}
+        <b id="current-date"></b>
+        <b id="current-time"></b>
+
     </div>
+
     <hr>
 
     {% with messages = get_flashed_messages() %}

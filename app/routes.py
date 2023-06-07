@@ -1,10 +1,15 @@
+import csv
+import io
 import json
 
+import pandas as pd
 import requests
+from sqlalchemy import select, column
+from sqlalchemy.orm import query
 
 from app import app, db
 from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, CreateNewMarketForm
-from flask import render_template, flash, redirect, url_for, request, jsonify
+from flask import render_template, flash, redirect, url_for, request, jsonify, Response
 from flask_login import current_user, login_user, logout_user
 from app.models import User, Post, Market, Transactions, Offer, Currency
 from flask_login import login_required
@@ -12,6 +17,11 @@ from werkzeug.urls import url_parse
 from datetime import datetime
 
 import sqlite3
+
+
+@app.context_processor
+def inject_datetime():
+    return {'current_time': datetime.utcnow()}
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -152,7 +162,7 @@ def time_to_string(time_obj):
 def market(market_id):
     market = Market.query.filter_by(market_id=market_id).first_or_404()
     transactions = Transactions.query \
-        .filter_by(market_id=market_id)\
+        .filter_by(market_id=market_id) \
         .order_by(Transactions.transaction_id.desc()) \
         .limit(10) \
         .all()
@@ -243,7 +253,7 @@ def buy(market_id):
 
     if get_security_info.status_code == 200:
         get_data = get_security_info.json()
-        #print(get_data)
+        # print(get_data)
         for get_entry in get_data:
             security_price = get_entry['price']
 
@@ -294,7 +304,7 @@ def sell(market_id):
 
     if get_security_info.status_code == 200:
         get_data = get_security_info.json()
-        #print(get_data)
+        # print(get_data)
         for get_entry in get_data:
             security_price = get_entry['price']
 
@@ -389,6 +399,41 @@ def get_currencies():
     db.session.commit()
     return '', 200
 
+#.label('id_market')
+@app.route('/markets/create_csv')
+def create_csv():
+    data = db.session.query(Market.market_name, Market.market_id, Offer.amount,
+                            Offer.security_id) \
+        .join(Offer, Market.market_id == Offer.market_id, isouter=True)
+    results = data.all()
+
+
+    csv_buffer = io.StringIO()
+    csv_writer = csv.writer(csv_buffer)
+
+    csv_writer.writerow([
+        'Market Name',
+        'Market ID',
+        'Amount',
+        'Security ID'
+    ])
+
+    for result in results:
+        csv_writer.writerow([
+            result.market_name,
+            result.market_id,
+            result.amount,
+            result.security_id
+        ])
+
+    csv_text = csv_buffer.getvalue()
+
+    return Response(
+        csv_text,
+        mimetype='text/csv',
+        headers={'Content-disposition': 'attachment; filename=data.csv'}
+    )
+
 
 @app.route('/firmen/wertpapiere/<market_id>', methods=['GET'])
 # @login_required
@@ -412,9 +457,6 @@ def securities_info(market_id):
             'currency': "EUR"
         }
     ), 200
-
-
-
 
 
 @app.route('/firmen/wertpapier/<security_id>/kauf', methods=['PUT'])

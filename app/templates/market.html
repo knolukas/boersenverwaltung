@@ -1,6 +1,42 @@
 {% extends "base.html" %}
+{% block scripts %}
+        {{ super() }}
+        <script>
+            function updateTime() {
+                // Restlicher Code für die Uhrzeit und das Datum
+
+                // Begrüßungstext generieren abhängig von den Öffnungszeiten
+                var greeting = "test";
+                var currentTime = new Date();
+
+                var currentHour = currentTime.getHours();
+                var currentMinute = currentTime.getMinutes();
+                var openingHour = {{ market.opens_at.hour }};
+                var openingMinute = {{ market.opens_at.minute }};
+                var closingHour = {{ market.closes_at.hour }};
+                var closingMinute = {{ market.closes_at.minute }};
+
+                if (
+                    (currentHour > openingHour || (currentHour === openingHour && currentMinute >= openingMinute)) &&
+                    (currentHour < closingHour || (currentHour === closingHour && currentMinute < closingMinute))
+                ) {
+                    greeting = "Willkommen! Der Markt ist geöffnet.";
+                    document.getElementById("greeting").style.backgroundColor = "lightgreen";  // Hintergrundfarbe: Hellgrün
+                } else {
+                    greeting = "Der Markt ist derzeit geschlossen.";
+                    document.getElementById("greeting").style.backgroundColor = "lightcoral";  // Hintergrundfarbe: Hellrot
+                }
+
+                document.getElementById("greeting").textContent = greeting;
+            }
+
+            setInterval(updateTime, 1000);
+        </script>
+    {% endblock %}
+
 {% block content %}
 <div class="container-fluid">
+<div id="greeting"></div>
     <table>
         <tr>
             <td>
@@ -58,4 +94,7 @@
         </tbody>
     </table>
 </div>
+
+
+
 {% endblock %}

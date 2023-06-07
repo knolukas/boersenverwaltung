@@ -1,52 +1,54 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Create New Market</h1>
-    <form action="" method="post">
-        {{ form.hidden_tag() }}
-        <p>
-            {{ form.market_name.label }}<br>
-            {{ form.market_name(size=32) }}<br>
-            {% for error in form.market_name.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.market_country.label }}<br>
-            {{ form.market_country(size=32) }}<br>
-            {% for error in form.market_country.errors %}
+    <div class="container-fluid">
+        <h1>Create New Market</h1>
+        <form action="" method="post">
+            {{ form.hidden_tag() }}
+            <p>
+                {{ form.market_name.label }}<br>
+                {{ form.market_name(size=32) }}<br>
+                {% for error in form.market_name.errors %}
                 <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.market_currency_id.label }}<br>
-            {{ form.market_currency_id(size=32) }}<br>
-            {% for error in form.market_currency_id.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.market_fee.label }}<br>
-            {{ form.market_fee(size=32) }}<br>
-            {% for error in form.market_fee.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-         <p>
-            {{ form.opens_at.label }}<br>
-            {{ form.opens_at(size=32) }}<br>
-            {% for error in form.opens_at.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.closes_at.label }}<br>
-            {{ form.closes_at(size=32) }}<br>
-            {% for error in form.closes_at.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-    
-        <p>{{ form.submit() }}</p>
-    </form>
+                {% endfor %}
+            </p>
+            <p>
+                {{ form.market_country.label }}<br>
+                {{ form.market_country(size=32) }}<br>
+                {% for error in form.market_country.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                {% endfor %}
+            </p>
+            <p>
+                {{ form.market_currency_id.label }}<br>
+                {{ form.market_currency_id(size=32) }}<br>
+                {% for error in form.market_currency_id.errors %}
+                <span style="color: red;">[{{ error }}]</span>
+                {% endfor %}
+            </p>
+            <p>
+                {{ form.market_fee.label }}<br>
+                {{ form.market_fee(size=32) }}<br>
+                {% for error in form.market_fee.errors %}
+                <span style="color: red;">[{{ error }}]</span>
+                {% endfor %}
+            </p>
+             <p>
+                {{ form.opens_at.label }}<br>
+                {{ form.opens_at(size=32) }}<br>
+                {% for error in form.opens_at.errors %}
+                <span style="color: red;">[{{ error }}]</span>
+                {% endfor %}
+            </p>
+            <p>
+                {{ form.closes_at.label }}<br>
+                {{ form.closes_at(size=32) }}<br>
+                {% for error in form.closes_at.errors %}
+                <span style="color: red;">[{{ error }}]</span>
+                {% endfor %}
+            </p>
+
+            <p>{{ form.submit() }}</p>
+        </form>
+    </div>
 {% endblock %}
