@@ -38,11 +38,32 @@ def index():
     # posts = Post.query.all()
     markets = Market.query.all()
     currencies = Currency.query.all()
-    count_securities = 10
-    count_companies = 10
+
     return render_template('index.html', title='Home', markets=markets, currencies=currencies,
-                           count_companies=count_companies, count_securities=count_securities
-                           )
+                           count_companies=count_companies, count_securities=count_securities)
+
+
+def count_securities(market_id):
+    number = Offer.query.filter_by(market_id=market_id).count()
+    return number
+
+
+def count_companies(market_id):
+    offers = Offer.query.filter_by(market_id=market_id).all()
+
+    url = "http://127.0.0.1:50052/firmen/wertpapiere"
+    security_info = requests.get(url)
+    security_info_json = security_info.json()
+    company_list = []
+
+    for entry in offers:
+        for security in security_info_json:
+            if entry.security_id == security['id']:
+                company_list.append(security['comp_id'])
+
+    unique_list = list(dict.fromkeys(company_list))
+
+    return len(unique_list)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -105,6 +126,22 @@ def createmarket():
     return render_template('create_market.html', title='Create Market', form=form)
 
 
+@app.route('/deletemarket/<market_id>')
+def delete_market(market_id):
+    market = Market.query.get(market_id)
+    securities = Offer.query.filter_by(market_id=market_id).all()
+    print(securities)
+    if len(securities) > 0:
+        flash('There are still securities available on the selected market! Cannot delete market.')
+        return redirect(request.referrer or url_for('index'))
+
+    db.session.delete(market)
+    db.session.commit()
+
+    flash('Market: "' + market.market_name + '" gelöscht!')
+    return redirect(request.referrer or url_for('index'))
+
+
 @app.route('/user/<username>')
 @login_required
 def user(username):
@@ -160,36 +197,40 @@ def time_to_string(time_obj):
 @app.route('/markets/<market_id>', methods=['GET'])
 # @login_required
 def market(market_id):
+    # Wertpapier infos von Firmenverwaltung beschaffen
+    url = "http://127.0.0.1:50052/firmen/wertpapiere"
+    security_info = requests.get(url)
+    security_info_json = security_info.json()
+
+    # Abfragen in der eigenen Datenbank
     market = Market.query.filter_by(market_id=market_id).first_or_404()
     transactions = Transactions.query \
         .filter_by(market_id=market_id) \
         .order_by(Transactions.transaction_id.desc()) \
-        .limit(10) \
+        .limit(100) \
         .all()
     offer = Offer.query.filter_by(market_id=market_id).all()
     id = Market.query.filter_by(market_id=market_id).first().market_currency_id
-    print(id)
     currency = Currency.query.filter_by(market_currency_id=id).first()
 
-    json_data = []
+    print(offer)
+
+    json_data = None
 
     if request.headers.get('Accept') == 'application/json':
-        json_data.append({
+        json_data = {
             'market_id': market.market_id,
             'market_name': market.market_name,
             'opens_at': time_to_string(market.opens_at),
             'closes_at': time_to_string(market.closes_at),
             'market_currency_id': market.market_currency_id,
             'market_fee': market.market_fee
-        })
-
-    # JSON Ausgabe
-    if request.headers.get('Accept') == 'application/json':
+        }
         return jsonify(json_data)
 
     # HTML Render Ausgabe
     return render_template('market.html', market=market, transactions=transactions,
-                           offer=offer, currency=currency)
+                           offer=offer, currency=currency, security_info=security_info_json)
 
 
 @app.route('/markets', methods=['GET'])
@@ -222,7 +263,7 @@ def markets_transactions():  # eventuell id von einer börse mitgeben
     json_data = []
 
     for entry in transactions:
-        json_data.append([{
+        json_data.append({
             'transaction_id': entry.transaction_id,
             'timestamp': time_to_string(entry.timestamp),
             'security_id': entry.security_id,
@@ -230,7 +271,7 @@ def markets_transactions():  # eventuell id von einer börse mitgeben
             'security_amount': entry.security_amount,
             'transaction_type': entry.transaction_type,
             'market_id': entry.market_id
-        }])
+        })
 
     return jsonify(json_data)
 
@@ -334,8 +375,10 @@ def sell(market_id):
 def refresh_offer(market_id):
     global message
     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
-    data = request.get_json(force=True)
+    data = request.get_json()
+
     print(data)
+
     if data is not None:
         if isinstance(data, list):
             # Daten sind eine Liste von Objekten
@@ -385,6 +428,7 @@ def security_info(security_id):
 
 
 @app.route('/markets/getcurrencies')
+# nur für einmalige initialisierung der Currency Tabelle (potentiel auch automatische aktualisierung)
 def get_currencies():
     url = "https://openexchangerates.org/api/currencies.json"
     response = requests.get(url)
@@ -399,14 +443,17 @@ def get_currencies():
     db.session.commit()
     return '', 200
 
-#.label('id_market')
+
+# .label('id_market')
 @app.route('/markets/create_csv')
 def create_csv():
+    url = "http://127.0.0.1:50052/firmen/wertpapiere"
+    security_info = requests.get(url)
+    security_info_json = security_info.json()
     data = db.session.query(Market.market_name, Market.market_id, Offer.amount,
                             Offer.security_id) \
         .join(Offer, Market.market_id == Offer.market_id, isouter=True)
     results = data.all()
-
 
     csv_buffer = io.StringIO()
     csv_writer = csv.writer(csv_buffer)
@@ -415,18 +462,25 @@ def create_csv():
         'Market Name',
         'Market ID',
         'Amount',
-        'Security ID'
+        'Security ID',
+        'Security Name'
     ])
 
     for result in results:
+        security_name = None
+        for security in security_info_json:
+            if result.security_id == security['id']:
+                security_name = security['name']
+
         csv_writer.writerow([
             result.market_name,
             result.market_id,
             result.amount,
-            result.security_id
+            result.security_id,
+            security_name
         ])
 
-    csv_text = csv_buffer.getvalue()
+        csv_text = csv_buffer.getvalue()
 
     return Response(
         csv_text,
@@ -435,12 +489,12 @@ def create_csv():
     )
 
 
-@app.route('/firmen/wertpapiere/<market_id>', methods=['GET'])
+@app.route('/firmen/wertpapiere', methods=['GET'])
 # @login_required
-def securities_info(market_id):
+def securities_info():
     return jsonify({
-        'security_id': 3,
-        'name': "aktie1",
+        'id': 3,
+        'name': "KEBA A(3)",
         'price': 100,
         'comp_id': 1,
         'amount': 99,
@@ -448,13 +502,49 @@ def securities_info(market_id):
         'currency': "EUR"
     },
         {
-            'security_id': 1,
-            'name': "aktie1",
+            'id': 1,
+            'name': "Voestalpine A(1)",
             'price': 100,
             'comp_id': 1,
             'amount': 1000,
             'market_id': 1,
             'currency': "EUR"
+        },
+        {
+            'id': 6,
+            'name': "aktie 6",
+            'price': 16,
+            'comp_id': 3,
+            'amount': 600,
+            'market_id': 3,
+            'currency': "USD"
+        },
+        {
+            'id': 67,
+            'name': "aktie 67",
+            'price': 16,
+            'comp_id': 3,
+            'amount': 600,
+            'market_id': 3,
+            'currency': "USD"
+        },
+        {
+            'id': 2,
+            'name': "aktie 2",
+            'price': 16,
+            'comp_id': 3,
+            'amount': 600,
+            'market_id': 3,
+            'currency': "USD"
+        },
+        {
+            'id': 32,
+            'name': "aktie 32",
+            'price': 16,
+            'comp_id': 8,
+            'amount': 600,
+            'market_id': 3,
+            'currency': "USD"
         }
     ), 200
 

@@ -77,9 +77,10 @@ class Currency(db.Model):
 
 
 class Offer(db.Model):
-    security_id = Column(Integer, nullable=False, primary_key=True)
-    market_id = Column(Integer, ForeignKey('market.market_id', name='fk_offer_market_id'), nullable=False, primary_key=True)
+    security_id = Column(Integer, nullable=False)
+    market_id = Column(Integer, ForeignKey('market.market_id', name='fk_offer_market_id'), nullable=False)
     amount = Column(Integer, nullable=False)
+    offer_id = Column(Integer, nullable=False, primary_key=True)
 
     def __repr__(self):
         return '<Offer {}>'.format(self.security_id, self.market_id)

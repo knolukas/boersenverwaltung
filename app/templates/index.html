@@ -50,10 +50,19 @@
                         {% endif %}
                     {% endfor %}
                 </td>
-                <td>{{ count_securities }}</td>
-                <td>{{ count_companies }}</td>
+                <td>{{ count_securities(market.market_id) }}</td>
+                <td>{{ count_companies(market.market_id) }}</td>
                 <td>{{ market.opens_at }}</td>
                 <td>{{ market.closes_at }}</td>
+                    {% if current_user.admin_tag %}
+                        <td>
+                        <a class="btn btn-danger"
+                           href="{{ url_for('delete_market',market_id = market.market_id) }}"
+                           style="text-align: right; color: black">
+                            löschen
+                        </a>
+                        </td>
+                    {% endif %}
             </tr>
             {% endfor %}
         </tbody>

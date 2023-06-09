@@ -53,17 +53,25 @@
     <table class="table table-sm table-hover">
          <thead>
             <tr>
-                <th>Security Name (Noch ID)</th>
-                <th>Market Name (Noch ID)</th>
+                <th>Security Name</th>
+                {# <th>Market Name (Noch ID)</th> #}
                 <th>Available Amount</th>
-                <th><a href="{{ url_for('refresh_offer', market_id=market.market_id)}}">Refresh-Button</a></th>
+                {# <th><a href="{{ url_for('refresh_offer', market_id=market.market_id)}}">Refresh-Button</a></th> #}
             </tr>
         </thead>
         <tbody>
             {% for offer in offer %}
                 <tr>
-                    <td>{{ offer.security_id }}</td>
-                    <td>{{ offer.market_id }}</td>
+                    <td>
+                        {% set ns = namespace(name = "<empty>") %} {# eine einfache variable ist nicht persistent, daher muss mit namespace gearbeitet werden #}
+                        {% for security in security_info %}
+                            {% if offer.security_id == security.id %}
+                                {% set ns.name = security.name %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ ns.name }}
+                    </td>
+                    {# <td>{{ offer.market_id }}</td> #}
                     <td>{{ offer.amount }}</td>
                 </tr>
             {% endfor %}
