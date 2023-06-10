@@ -50,12 +50,14 @@
             </td>
         </tr>
     </table>
-    <table class="table table-sm table-hover">
+    <table class="table table-hover">
          <thead>
             <tr>
                 <th>Security Name</th>
+                <th>Security ID</th>
+                <th>Available Amount <button class="btn btn-info" onclick="window.location.reload();">Refresh</button> </th>
                 {# <th>Market Name (Noch ID)</th> #}
-                <th>Available Amount</th>
+                {# <th>Available Amount</th>#}
                 {# <th><a href="{{ url_for('refresh_offer', market_id=market.market_id)}}">Refresh-Button</a></th> #}
             </tr>
         </thead>
@@ -71,36 +73,40 @@
                         {% endfor %}
                         {{ ns.name }}
                     </td>
+                    <td>{{ offer.security_id }}</td>
+                    <td>{{ offer.available_amount }} </td>
                     {# <td>{{ offer.market_id }}</td> #}
-                    <td>{{ offer.amount }}</td>
+                    {# <td>{{ offer.amount }}</td>#}
                 </tr>
             {% endfor %}
         </tbody>
     </table>
-     <table>
-         <thead>
-            <tr>
-                <th>Transaction ID</th>
-                <th>Timestamp</th>
-                <th>Security Name (noch ID)</th>
-                <th>Security Price</th>
-                <th>Security Amount</th>
-                <th>Transaction Type</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for transaction in transactions %}
+    <div style="max-height: 200px; overflow-y: scroll;">
+         <table class="table">
+             <thead">
                 <tr>
-                    <td>{{ transaction.transaction_id }}</td>
-                    <td>{{ transaction.timestamp }}</td>
-                    <td>{{ transaction.security_id }}</td>
-                    <td>{{ transaction.security_price }}</td>
-                    <td>{{ transaction.security_amount }}</td>
-                    <td>{{ transaction.transaction_type}}</td>
+                    <th>Transaction ID</th>
+                    <th>Timestamp</th>
+                    <th>Security Name (noch ID)</th>
+                    <th>Security Price</th>
+                    <th>Security Amount</th>
+                    <th>Transaction Type</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                    <tr>
+                        <td>{{ transaction.transaction_id }}</td>
+                        <td>{{ transaction.timestamp }}</td>
+                        <td>{{ transaction.security_id }}</td>
+                        <td>{{ transaction.security_price }}</td>
+                        <td>{{ transaction.security_amount }}</td>
+                        <td>{{ transaction.transaction_type}}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 

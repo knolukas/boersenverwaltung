@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container-fluid">
+    <h1>Edit Market</h1>
+        <form action="" method="post">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                {{ form.market_name.label }}
+                {{ form.market_name(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.market_currency_id.label }}
+                {{ form.market_currency_id(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.market_country.label }}
+                {{ form.market_country(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.market_fee.label }}
+                {{ form.market_fee(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.opens_at.label }}
+                {{ form.opens_at(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.closes_at.label }}
+                {{ form.closes_at(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+    </div>
+{% endblock %}

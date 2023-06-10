@@ -1,10 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from app import login
 from hashlib import md5
-from sqlalchemy import Column, Integer, DateTime, Boolean, String, Float, Text, ForeignKey, Time
+from sqlalchemy import Column, Integer, DateTime, Boolean, String, Float, Text, ForeignKey, Time, CheckConstraint
 
 
 class User(UserMixin, db.Model):
@@ -55,7 +55,7 @@ class Market(db.Model):
 
 class Transactions(db.Model):
     transaction_id = Column(Integer, primary_key=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow() + timedelta(hours=2), nullable=False)
     security_id = Column(Integer, nullable=False)
     security_price = Column(Float, nullable=False)
     security_amount = Column(Integer, nullable=False)
@@ -81,6 +81,13 @@ class Offer(db.Model):
     market_id = Column(Integer, ForeignKey('market.market_id', name='fk_offer_market_id'), nullable=False)
     amount = Column(Integer, nullable=False)
     offer_id = Column(Integer, nullable=False, primary_key=True)
+    company_id = Column(Integer)
+    depot_id = Column(Integer)
+
+    constraint = CheckConstraint(
+        'company_id IS NOT NULL OR depot_id IS NOT NULL',
+        name='offer_company_or_depot'
+    )
 
     def __repr__(self):
         return '<Offer {}>'.format(self.security_id, self.market_id)

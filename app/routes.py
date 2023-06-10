@@ -4,11 +4,11 @@ import json
 
 import pandas as pd
 import requests
-from sqlalchemy import select, column
+from sqlalchemy import select, column, func
 from sqlalchemy.orm import query
 
 from app import app, db
-from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, CreateNewMarketForm
+from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, CreateNewMarketForm, EditMarketForm
 from flask import render_template, flash, redirect, url_for, request, jsonify, Response
 from flask_login import current_user, login_user, logout_user
 from app.models import User, Post, Market, Transactions, Offer, Currency
@@ -128,6 +128,9 @@ def createmarket():
 
 @app.route('/deletemarket/<market_id>')
 def delete_market(market_id):
+    if not current_user.admin_tag:
+        flash("Insufficient permission!")
+        return redirect(url_for('index'))
     market = Market.query.get(market_id)
     securities = Offer.query.filter_by(market_id=market_id).all()
     print(securities)
@@ -140,6 +143,30 @@ def delete_market(market_id):
 
     flash('Market: "' + market.market_name + '" gelöscht!')
     return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/editmarket/<market_id>', methods=['GET', 'POST'])
+def edit_market(market_id):
+    if not current_user.admin_tag:
+        flash("Insufficient permission!")
+        return redirect(url_for('index'))
+
+    market = Market.query.get(market_id)
+    market_name = "test"
+    form = EditMarketForm(obj=market)
+    # form.market_name.data = market.market_name
+    if form.validate_on_submit():
+        market.market_name = form.market_name.data
+        market.market_currency_id = form.market_currency_id.data
+        market.market_country = form.market_country.data
+        market.market_fee = form.market_fee.data
+        market.opens_at = form.opens_at.data
+        market.closes_at = form.closes_at.data
+        db.session.commit()
+        flash('Your changes have been saved.')
+        return redirect(url_for('index'))
+    elif request.method == 'GET':
+        return render_template('edit_market.html', title='Edit Market', form=form)
 
 
 @app.route('/user/<username>')
@@ -173,7 +200,11 @@ def before_request():
         db.session.commit()
 
 
+# ============================================================================================
+# ********************************************************************************************
 # GET Methods #
+# ********************************************************************************************
+# ============================================================================================
 @app.route('/markets/<market_id>/offer', methods=['GET'])  # login required???
 def get_market_offer(market_id):
     data = Offer.query.filter_by(market_id=market_id).all()
@@ -209,11 +240,16 @@ def market(market_id):
         .order_by(Transactions.transaction_id.desc()) \
         .limit(100) \
         .all()
-    offer = Offer.query.filter_by(market_id=market_id).all()
+    offers = Offer.query \
+        .filter_by(market_id=market_id) \
+        .with_entities(Offer.security_id, func.sum(Offer.amount).label('available_amount')) \
+        .group_by(Offer.security_id) \
+        .order_by(Offer.security_id.asc()) \
+        .all()
     id = Market.query.filter_by(market_id=market_id).first().market_currency_id
     currency = Currency.query.filter_by(market_currency_id=id).first()
 
-    print(offer)
+    print(offers)
 
     json_data = None
 
@@ -230,7 +266,7 @@ def market(market_id):
 
     # HTML Render Ausgabe
     return render_template('market.html', market=market, transactions=transactions,
-                           offer=offer, currency=currency, security_info=security_info_json)
+                           offer=offers, currency=currency, security_info=security_info_json)
 
 
 @app.route('/markets', methods=['GET'])
@@ -276,7 +312,11 @@ def markets_transactions():  # eventuell id von einer börse mitgeben
     return jsonify(json_data)
 
 
-# PUT Schnittstellen #
+# ============================================================================================
+# ********************************************************************************************
+# PUT Methods #
+# ********************************************************************************************
+# ============================================================================================
 
 @app.route('/markets/<market_id>/buy', methods=['PUT'])
 # @login_required
@@ -286,165 +326,174 @@ def buy(market_id):
     data = request.json
     security_id = data['security_id']
     amount = data['amount']
+
     url = 'http://127.0.0.1:50052/firmen/wertpapier/{}/kauf'.format(
         security_id)  # anpassen an Port der Firmenverwaltung
+
+    # nur als dummy funktion implementiert, es werden immer die gleichen daten
+    # ausgegeben unahhängig von der security_id
     get_url = 'http://127.0.0.1:50052/firmen/wertpapiere/{}'.format(security_id)
 
     get_security_info = requests.get(get_url)
 
     if get_security_info.status_code == 200:
         get_data = get_security_info.json()
-        # print(get_data)
-        for get_entry in get_data:
-            security_price = get_entry['price']
+        security_price = get_data['price']
 
     else:
         return "Fehler. Wertpapier nicht gefunden.", 400
 
-    entry = Offer.query.filter_by(market_id=market_id, security_id=security_id).first_or_404(
-        description="Wertpapier nicht vorhanden!")
-    availableAmount = entry.amount
+    offers = Offer \
+        .query \
+        .filter_by(market_id=market_id, security_id=security_id) \
+        .order_by(Offer.offer_id.desc()) \
+        .all()
 
-    if amount > availableAmount:
-        message = "Es sind nur noch " + str(availableAmount) + " Stueck dieses Wertpapiers vorhanden! Erneut versuchen."
+    total_amount = Offer.query \
+        .filter_by(market_id=market_id, security_id=security_id) \
+        .with_entities(func.sum(Offer.amount).label('available_amount')) \
+        .first()
 
+    # wenn insgesamt weniger von diesem security vorhanden ist
+    if amount > total_amount.available_amount:
+        message = "Es sind nur noch " + str(
+            total_amount.available_amount) + " Stueck dieses Wertpapiers vorhanden! Erneut versuchen."
         return jsonify({'message': message}), 400
 
-    else:
-        entry.amount = availableAmount - amount
-        data["market_fee"] = market.market_fee
-        response = requests.put(url, data=data, headers={'Content-Type': 'application/json'})
-        if response.status_code == 200:
-            newEntry = Transactions(security_id=security_id, security_price=security_price, security_amount=amount,
-                                    transaction_type="Buy", market_id=market_id)
-            db.session.add(newEntry)
-            db.session.commit()
+    i = 0
+    sold_amount = 0
+
+    while amount > 0 or i < len(offers):
+        offer = Offer.query.get(offers[i].offer_id)
+        if offers[i].company_id is None:
+            id = offers[i].depot_id
+            typ = "Person"
+            # TODO anpassen an DEPOT ID
+            url = "http://127.0.0.1:50052/firmen/wertpapier/verkauf/" + str(id)
+
         else:
-            db.session.rollback()
-            return jsonify({'message': 'Fehler in der Anfrage!'}), 400
+            id = offers[i].company_id
+            typ = "Company"
+            url = "http://127.0.0.1:50052/firmen/wertpapier/verkauf/" + str(id)
 
-        return jsonify({'message': 'Kauf war erfolgreich!'}), 200
+        if amount >= offers[i].amount:
+            sold_amount = offers[i].amount
+            amount = amount - offers[i].amount
 
+            db.session.delete(offer)
 
-@app.route('/markets/<market_id>/sell', methods=['PUT'])
-# @login_required
-def sell(market_id):
-    market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
-
-    data = request.json
-    security_id = data['security_id']
-    amount = data['amount']
-
-    entry = Offer.query.filter_by(market_id=market_id, security_id=security_id).first()
-    url = 'http://127.0.0.1:50052/firmen/wertpapier/{}/verkauf'.format(
-        security_id)  # anpassen an Port der Firmenverwaltung
-
-    get_url = 'http://127.0.0.1:50052/firmen/wertpapiere/{}'.format(security_id)
-
-    get_security_info = requests.get(get_url)
-
-    if get_security_info.status_code == 200:
-        get_data = get_security_info.json()
-        # print(get_data)
-        for get_entry in get_data:
-            security_price = get_entry['price']
-
-    else:
-        return "Fehler. Wertpapier nicht gefunden.", 400
-
-    if entry:
-        entry.amount = entry.amount + amount
-        data["market_fee"] = market.market_fee
-        response = requests.put(url, data=data, headers={'Content-Type': 'application/json'})
-        print(data)
-        if response.status_code == 200:
-            newEntry = Transactions(security_id=security_id, security_price=security_price, security_amount=amount,
-                                    transaction_type="Sell", market_id=market_id)
-            db.session.add(newEntry)
-            db.session.commit()
-            return jsonify(data), 200
         else:
-            db.session.rollback()
-            return jsonify({'message': 'Fehler in der Anfrage!'}), 400
+            sold_amount = amount
+            offers[i].amount = offers[i].amount - amount
+            amount = 0
 
-    else:
-        return jsonify({'message': 'Wertpapier wird an dieser Boerse nicht gehandelt!'}), 400
+            # info an den besitzer vom jeweiligen angebot in der liste
+        data = {'id': offer.offer_id, 'typ': typ, 'amount': sold_amount, 'seller_id': id}
+
+        response = requests.put(url, json=data)
+        print("Nachricht an Seller: " + str(response.json()))
+
+        i = i + 1
+
+    newEntry = Transactions(security_id=security_id, security_price=security_price, security_amount=sold_amount,
+                            transaction_type="Buy", market_id=market_id)
+    db.session.add(newEntry)
+    db.session.commit()
+
+    return jsonify({'message': 'Kauf war erfolgreich!'}), 200
 
 
+# @app.route('/markets/<market_id>/sell', methods=['PUT']) # ist  nicht mehr notwendig - da es nur angebote gibt und keine automatischen verkaufsvorgänge
+# # @login_required
+# def sell(market_id):
+#     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
+#
+#     data = request.json
+#     security_id = data['security_id']
+#     amount = data['amount']
+#
+#     entry = Offer.query.filter_by(market_id=market_id, security_id=security_id).first()
+#     url = 'http://127.0.0.1:50052/firmen/wertpapier/{}/verkauf'.format(
+#         security_id)  # anpassen an Port der Firmenverwaltung
+#
+#     get_url = 'http://127.0.0.1:50052/firmen/wertpapiere/{}'.format(security_id)
+#
+#     get_security_info = requests.get(get_url)
+#
+#     if get_security_info.status_code == 200:
+#         get_data = get_security_info.json()
+#         # print(get_data)
+#         for get_entry in get_data:
+#             security_price = get_entry['price']
+#
+#     else:
+#         return "Fehler. Wertpapier nicht gefunden.", 400
+#
+#     if entry:
+#         entry.amount = entry.amount + amount
+#         data["market_fee"] = market.market_fee
+#         response = requests.put(url, data=data, headers={'Content-Type': 'application/json'})
+#         print(data)
+#         if response.status_code == 200:
+#             newEntry = Transactions(security_id=security_id, security_price=security_price, security_amount=amount,
+#                                     transaction_type="Sell", market_id=market_id)
+#             db.session.add(newEntry)
+#             db.session.commit()
+#             return jsonify(data), 200
+#         else:
+#             db.session.rollback()
+#             return jsonify({'message': 'Fehler in der Anfrage!'}), 400
+#
+#     else:
+#         return jsonify({'message': 'Wertpapier wird an dieser Boerse nicht gehandelt!'}), 400
+
+# ============================================================================================
+# ********************************************************************************************
+# POST Methods #
+# ********************************************************************************************
+# ============================================================================================
 @app.route('/markets/<market_id>/offer', methods=['POST'])
 def refresh_offer(market_id):
     global message
     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
     data = request.get_json()
 
-    print(data)
-
     if data is not None:
         if isinstance(data, list):
             # Daten sind eine Liste von Objekten
             for entry in data:
-                security_id = entry['id']
-                amount = entry['amount']
+                security_id = entry.get('id')
+                amount = entry.get('amount')
+                company_id = entry.get('company_id')    #TODO achtung auf Bezeichnung der Werte
+                depot_id = entry.get('depot_id')
 
-                if Offer.query.filter_by(security_id=security_id).first():
-                    existing = Offer.query.filter_by(security_id=security_id, market_id=market_id).first()
-                    existing.amount = amount
-                else:
-                    newEntry = Offer(market_id=market_id, security_id=security_id, amount=amount)
-                    db.session.add(newEntry)
+                new_entry = Offer(market_id=market_id, security_id=security_id, amount=amount,
+                                  company_id=company_id, depot_id=depot_id)
+                db.session.add(new_entry)
+            message = str(len(data)) + ' neue Angebote wurden erfolgreich erstellt!'
 
         elif isinstance(data, dict):
             # Daten sind ein einzelnes Objekt
             security_id = data['id']
             amount = data['amount']
 
-            if Offer.query.filter_by(security_id=security_id, market_id=market_id).first():
-                existing = Offer.query.filter_by(security_id=security_id, market_id=market_id).first()
-                existing.amount = amount
-                message = "Bestehendes Wertpapier aktualisiert!"
-            else:
-                newEntry = Offer(market_id=market_id, security_id=security_id, amount=amount)
-                message = "Neues Angebot erfolgreich erstellt!"
-                db.session.add(newEntry)
+            newEntry = Offer(market_id=market_id, security_id=security_id, amount=amount)
+            message = "Neues Angebot erfolgreich erstellt!"
+            db.session.add(newEntry)
 
         db.session.commit()
         return message, 200
+
     else:
         return "Ungültige Anfrage", 400
 
 
-# Firmenverwaltung simulation
-@app.route('/wertpapier/<security_id>/verkauf', methods=['GET'])
-# @login_required
-def security_info(security_id):
-    return jsonify({
-        'security_id': 3,
-        'name': "aktie1",
-        'price': 100,
-        'comp_id': 1,
-        'amount': 99,
-        'market_id': 1,
-        'currency': "EUR"}), 200
+# ============================================================================================
+# ********************************************************************************************
+# USP - CSV Creation #
+# ********************************************************************************************
+# ============================================================================================
 
-
-@app.route('/markets/getcurrencies')
-# nur für einmalige initialisierung der Currency Tabelle (potentiel auch automatische aktualisierung)
-def get_currencies():
-    url = "https://openexchangerates.org/api/currencies.json"
-    response = requests.get(url)
-    data = response.json()
-    keys = data.keys()
-
-    for entry in keys:
-        name = data[str(entry)]
-        newEntry = Currency(market_currency_name=name, market_currency_code=str(entry))
-        db.session.add(newEntry)
-
-    db.session.commit()
-    return '', 200
-
-
-# .label('id_market')
 @app.route('/markets/create_csv')
 def create_csv():
     url = "http://127.0.0.1:50052/firmen/wertpapiere"
@@ -487,6 +536,47 @@ def create_csv():
         mimetype='text/csv',
         headers={'Content-disposition': 'attachment; filename=data.csv'}
     )
+
+
+# ============================================================================================
+# ********************************************************************************************
+# Zur einmaligen Befüllung der Currencies:
+# ********************************************************************************************
+# ============================================================================================
+
+@app.route('/markets/getcurrencies')
+# nur für einmalige initialisierung der Currency Tabelle (potentiel auch automatische aktualisierung)
+def get_currencies():
+    url = "https://openexchangerates.org/api/currencies.json"
+    response = requests.get(url)
+    data = response.json()
+    keys = data.keys()
+
+    for entry in keys:
+        name = data[str(entry)]
+        newEntry = Currency(market_currency_name=name, market_currency_code=str(entry))
+        db.session.add(newEntry)
+
+    db.session.commit()
+    return '', 200
+
+
+# ============================================================================================
+# ********************************************************************************************
+# FIRMENVERWALTUNG DUMMY Methods #
+# ********************************************************************************************
+# ============================================================================================
+@app.route('/wertpapier/<security_id>/verkauf', methods=['GET'])
+# @login_required
+def security_info(security_id):
+    return jsonify({
+        'security_id': 3,
+        'name': "aktie1",
+        'price': 100,
+        'comp_id': 1,
+        'amount': 99,
+        'market_id': 1,
+        'currency': "EUR"}), 200
 
 
 @app.route('/firmen/wertpapiere', methods=['GET'])
@@ -549,13 +639,28 @@ def securities_info():
     ), 200
 
 
-@app.route('/firmen/wertpapier/<security_id>/kauf', methods=['PUT'])
+@app.route('/firmen/wertpapiere/<security_id>', methods=['GET'])
+def get_security_info(security_id):
+    return {
+        "amount": 21932,
+        "comp_id": 5,
+        "currency": "EUR",
+        "id": 1,
+        "market_id": 3,
+        "name": "Voestalpine A",
+        "price": 74.19
+    }, 200
+
+
+@app.route('/firmen/wertpapier/kauf/<security_id>', methods=['PUT'])
 # Info ausgabe wenn Wertpapier gekauft wurde
 def sold_info(security_id):
-    return '', 200
+    data = request.get_json()
+    return data, 200
 
 
-@app.route('/firmen/wertpapier/<security_id>/verkauf', methods=['PUT'])
+@app.route('/firmen/wertpapier/verkauf/<security_id>', methods=['PUT'])
 # Info ausgabe wenn Wertpapier verkauft wurde
 def bought_info(security_id):
-    return '', 200
+    data = request.get_json()
+    return data, 200
