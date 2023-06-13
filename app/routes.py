@@ -50,8 +50,8 @@ def count_securities(market_id):
 
 def count_companies(market_id):
     offers = Offer.query.filter_by(market_id=market_id).all()
-
-    url = "http://127.0.0.1:50052/firmen/wertpapiere"
+    # TODO ANPASSEN
+    url = "http://127.0.0.1:50051/firmen/wertpapiere"
     security_info = requests.get(url)
     security_info_json = security_info.json()
     company_list = []
@@ -228,8 +228,8 @@ def time_to_string(time_obj):
 @app.route('/markets/<market_id>', methods=['GET'])
 # @login_required
 def market(market_id):
-    # Wertpapier infos von Firmenverwaltung beschaffen
-    url = "http://127.0.0.1:50052/firmen/wertpapiere"
+    # TODO Wertpapier infos von Firmenverwaltung beschaffen
+    url = "http://127.0.0.1:50051/firmen/wertpapiere"
     security_info = requests.get(url)
     security_info_json = security_info.json()
 
@@ -327,12 +327,12 @@ def buy(market_id):
     security_id = data['security_id']
     amount = data['amount']
 
-    url = 'http://127.0.0.1:50052/firmen/wertpapier/{}/kauf'.format(
-        security_id)  # anpassen an Port der Firmenverwaltung
+    url = 'http://127.0.0.1:50051/firmen/wertpapier/{}/kauf'.format(
+        security_id)  # TODO anpassen an Port der Firmenverwaltung
 
     # nur als dummy funktion implementiert, es werden immer die gleichen daten
     # ausgegeben unahhängig von der security_id
-    get_url = 'http://127.0.0.1:50052/firmen/wertpapiere/{}'.format(security_id)
+    get_url = 'http://127.0.0.1:50051/firmen/wertpapiere/{}'.format(security_id)
 
     get_security_info = requests.get(get_url)
 
@@ -354,8 +354,13 @@ def buy(market_id):
         .with_entities(func.sum(Offer.amount).label('available_amount')) \
         .first()
 
+    if total_amount:
+        available_amount = total_amount.available_amount
+    else:
+        available_amount = 0
+
     # wenn insgesamt weniger von diesem security vorhanden ist
-    if amount > total_amount.available_amount:
+    if amount > available_amount:
         message = "Es sind nur noch " + str(
             total_amount.available_amount) + " Stueck dieses Wertpapiers vorhanden! Erneut versuchen."
         return jsonify({'message': message}), 400
@@ -374,7 +379,7 @@ def buy(market_id):
         else:
             id = offers[i].company_id
             typ = "Company"
-            url = "http://127.0.0.1:50052/firmen/wertpapier/verkauf/" + str(id)
+            url = "http://127.0.0.1:50051/firmen/wertpapier/verkauf/" + str(id)
 
         if amount >= offers[i].amount:
             sold_amount = offers[i].amount
@@ -496,7 +501,7 @@ def refresh_offer(market_id):
 
 @app.route('/markets/create_csv')
 def create_csv():
-    url = "http://127.0.0.1:50052/firmen/wertpapiere"
+    url = "http://127.0.0.1:50051/firmen/wertpapiere"
     security_info = requests.get(url)
     security_info_json = security_info.json()
     data = db.session.query(Market.market_name, Market.market_id, Offer.amount,
