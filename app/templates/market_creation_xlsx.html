@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container-fluid">
+        <h1>Upload File</h1>
+        <form id="upload-form" method="post" enctype="multipart/form-data" class="container">
+            <input type="file" id="file-upload" name="excel-file" accept=".xlsx">
+            <input type="submit" value="Submit" style="margin-top: 15px">
+        </form>
+    </div>
+
+{% endblock %}

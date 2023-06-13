@@ -2,10 +2,29 @@
 
 {% block content %}
     <div class="container-fluid">
-    <h>Hi, {{ current_user.username }}!</h>
+
+    {% if current_user.admin_tag %}
+        <h1>Admin Funktionen</h1>
+        <div class="container-fluid">
+            <p> </p>
+            <div class="row">
+                <div class="col">
+                    <a href="{{ url_for('createmarket') }}" class="btn btn-primary">Create a New Market</a>
+                    <a href="{{ url_for('create_csv') }}" class="btn btn-primary">Export Markets to CSV</a>
+                    <a href="{{ url_for('excel_creation') }}" class="btn btn-primary">Import Markets via Excel-File</a>
+                </div>
+            </div>
+        </div>
+        <hr class="blue-line">
+    {% else %}
+         <div class="container-fluid">
+             <a href="{{ url_for('create_csv') }}" class="btn btn-primary">Export Markets to CSV</a>
+        </div>
+        <hr class="blue-line">
+    {% endif %}
     <h1>Market-Overview</h1>
 
-    <table class="table table-hover" id="market-table">
+    <table class="table table-hover transparent-table" id="market-table">
         <thead>
             <tr>
                 <th>Name</th>
@@ -116,12 +135,6 @@
           }
       }
     </script>
-    {% if current_user.admin_tag %}
-    <p> </p>
-    <a href="{{ url_for('createmarket') }}" class="btn btn-primary">Create a New Market</a>
-    {% endif %}
-    <p> </p>
-    <a href="{{ url_for('create_csv') }}" class="btn btn-primary">Export Markets to CSV</a>
 
     </div>
 {% endblock %}

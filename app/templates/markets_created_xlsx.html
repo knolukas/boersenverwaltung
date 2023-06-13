@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Additional confirmation</h1>
+    <div class="container-fluid">
+        <div>
+            <table class="table table-hover table-condensed">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Country</th>
+                    <th>Currency</th>
+                    <th>Market-Fees</th>
+                    <th>Opens at</th>
+                    <th>Closes at</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for market in markets %}
+                    <tr>
+                        <td>{{ market.market_name }}</td>
+                        <td>{{ market.country }}</td>
+                        <td>{{ market.currency }}</td>
+                        <td>{{ market.fee }}</td>
+                        <td>{{ market.opens_at }}</td>
+                        <td>{{ market.closes_at }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <form method="POST">
+                <input type="submit" value="Submit" style="margin-top: 15px">
+            </form>
+        </div>
+    </div>
+
+{% endblock %}

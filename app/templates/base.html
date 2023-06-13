@@ -12,21 +12,19 @@
 
 {% block head %}
     {{ super() }}
-
-    {% if title %}
-    <title>{{ title }} - Boersenverwaltung</title>
-    {% else %}
-    <title>Welcome to Boersenverwaltung</title>
-    {% endif %}
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+        {% if title %}
+        <title>{{ title }} - Boersenverwaltung</title>
+        {% else %}
+        <title>Welcome to Boersenverwaltung</title>
+        {% endif %}
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
 {% endblock %}
 
 {% block body %}
         <body style="background-image: url('/static/background.jpg');
         background-size: 100%;
         background-repeat: no-repeat;
-        background-attachment: fixed;"
-    >
+        background-attachment: fixed;">
      {% block scripts %}
         {{ super() }}
         <script>
@@ -55,12 +53,11 @@
     {% endblock %}
 
     <div>
-        Boersenverwaltung:
+        <b>Boersenverwaltung - </b>
         <a href="{{ url_for('index') }}">Home</a>
         {% if current_user.is_anonymous %}
         <a href="{{ url_for('login') }}">Login</a>
         {% else %}
-        <a href="{{ url_for('user', username=current_user.username) }}">Profile</a>
         <a href="{{ url_for('logout') }}">Logout</a>
         {% endif %}
         {% if current_user.admin_tag %}
@@ -71,7 +68,7 @@
 
     </div>
 
-    <hr>
+    <hr class="blue-line">
 
     {% with messages = get_flashed_messages() %}
     {% if messages %}

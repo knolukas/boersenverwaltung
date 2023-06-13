@@ -9,12 +9,12 @@ from sqlalchemy.orm import query
 
 from app import app, db
 from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, CreateNewMarketForm, EditMarketForm
-from flask import render_template, flash, redirect, url_for, request, jsonify, Response
+from flask import render_template, flash, redirect, url_for, request, jsonify, Response, session
 from flask_login import current_user, login_user, logout_user
 from app.models import User, Post, Market, Transactions, Offer, Currency
 from flask_login import login_required
 from werkzeug.urls import url_parse
-from datetime import datetime
+from datetime import datetime, time
 
 import sqlite3
 
@@ -234,20 +234,32 @@ def market(market_id):
     security_info_json = security_info.json()
 
     # Abfragen in der eigenen Datenbank
-    market = Market.query.filter_by(market_id=market_id).first_or_404()
+    market = Market.query \
+        .filter_by(market_id=market_id) \
+        .first_or_404()
+
     transactions = Transactions.query \
         .filter_by(market_id=market_id) \
         .order_by(Transactions.transaction_id.desc()) \
         .limit(100) \
         .all()
+
     offers = Offer.query \
         .filter_by(market_id=market_id) \
         .with_entities(Offer.security_id, func.sum(Offer.amount).label('available_amount')) \
         .group_by(Offer.security_id) \
         .order_by(Offer.security_id.asc()) \
         .all()
-    id = Market.query.filter_by(market_id=market_id).first().market_currency_id
-    currency = Currency.query.filter_by(market_currency_id=id).first()
+
+    id = Market.query \
+        .filter_by(market_id=market_id) \
+        .first() \
+        .market_currency_id
+
+    currency = Currency \
+        .query \
+        .filter_by(market_currency_id=id) \
+        .first()
 
     print(offers)
 
@@ -317,11 +329,32 @@ def markets_transactions():  # eventuell id von einer börse mitgeben
 # PUT Methods #
 # ********************************************************************************************
 # ============================================================================================
+def get_price(security_id):
+    get_url = 'http://127.0.0.1:50051/firmen/wertpapiere/{}'.format(security_id)
+
+    get_security_info = requests.get(get_url)
+
+    if get_security_info.status_code == 200:
+        get_data = get_security_info.json()
+        security_price = get_data['price']
+        return security_price
+
+    else:
+        return -1
+
 
 @app.route('/markets/<market_id>/buy', methods=['PUT'])
 # @login_required
 def buy(market_id):
     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
+
+    fees = market.market_fee
+
+    currency_id = market.market_currency_id
+    currency = Currency.query \
+        .filter_by(market_currency_id=currency_id) \
+        .first_or_404(description="Waehrung nicht verfügbar") \
+        .market_currency_code
 
     data = request.json
     security_id = data['security_id']
@@ -330,17 +363,8 @@ def buy(market_id):
     url = 'http://127.0.0.1:50051/firmen/wertpapier/{}/kauf'.format(
         security_id)  # TODO anpassen an Port der Firmenverwaltung
 
-    # nur als dummy funktion implementiert, es werden immer die gleichen daten
-    # ausgegeben unahhängig von der security_id
-    get_url = 'http://127.0.0.1:50051/firmen/wertpapiere/{}'.format(security_id)
-
-    get_security_info = requests.get(get_url)
-
-    if get_security_info.status_code == 200:
-        get_data = get_security_info.json()
-        security_price = get_data['price']
-
-    else:
+    security_price = get_price(security_id)
+    if security_price == -1:
         return "Fehler. Wertpapier nicht gefunden.", 400
 
     offers = Offer \
@@ -355,14 +379,18 @@ def buy(market_id):
         .first()
 
     if total_amount:
-        available_amount = total_amount.available_amount
+        available_amount = total_amount.available_amount or 0
     else:
         available_amount = 0
 
     # wenn insgesamt weniger von diesem security vorhanden ist
     if amount > available_amount:
-        message = "Es sind nur noch " + str(
-            total_amount.available_amount) + " Stueck dieses Wertpapiers vorhanden! Erneut versuchen."
+        if available_amount == 0:
+            message = "Dieses Wertpapier ist leider nicht mehr an dieser Börse verfügbar. Vorgang abgebrochen."
+            return jsonify({'message': message}), 400
+
+        message = "Es sind nur noch " + str(available_amount) + \
+                  " Stueck dieses Wertpapiers vorhanden! Erneut versuchen."
         return jsonify({'message': message}), 400
 
     i = 0
@@ -393,10 +421,11 @@ def buy(market_id):
             amount = 0
 
             # info an den besitzer vom jeweiligen angebot in der liste
-        data = {'id': offer.offer_id, 'typ': typ, 'amount': sold_amount, 'seller_id': id}
+        data = {'id': offer.offer_id, 'typ': typ, 'amount': sold_amount, 'seller_id': id, 'fees': fees,
+                'currency': currency}
 
         response = requests.put(url, json=data)
-        print("Nachricht an Seller: " + str(response.json()))
+        print("Nachricht an Seller: " + str(data) + ", Nachricht von Seller: " + str(response.json()))
 
         i = i + 1
 
@@ -462,29 +491,40 @@ def refresh_offer(market_id):
     global message
     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
     data = request.get_json()
-
+    print(data)
     if data is not None:
         if isinstance(data, list):
             # Daten sind eine Liste von Objekten
             for entry in data:
                 security_id = entry.get('id')
                 amount = entry.get('amount')
-                company_id = entry.get('company_id')    #TODO achtung auf Bezeichnung der Werte
+                company_id = entry.get('comp_id')  # TODO achtung auf Bezeichnung der Werte
                 depot_id = entry.get('depot_id')
+                security_price = entry.get('price')
 
                 new_entry = Offer(market_id=market_id, security_id=security_id, amount=amount,
                                   company_id=company_id, depot_id=depot_id)
+                new_transaction = Transactions(security_id=security_id, security_price=security_price * amount,
+                                               security_amount=amount, transaction_type="Sell", market_id=market_id)
                 db.session.add(new_entry)
+                db.session.add(new_transaction)
             message = str(len(data)) + ' neue Angebote wurden erfolgreich erstellt!'
 
         elif isinstance(data, dict):
             # Daten sind ein einzelnes Objekt
-            security_id = data['id']
-            amount = data['amount']
+            security_id = data.get('id')
+            amount = data.get('amount')
+            company_id = data.get('comp_id')
+            depot_id = data.get('depot_id')
+            security_price = data.get('price')
 
-            newEntry = Offer(market_id=market_id, security_id=security_id, amount=amount)
+            new_entry = Offer(market_id=market_id, security_id=security_id, amount=amount,
+                              company_id=company_id, depot_id=depot_id)
+            new_transaction = Transactions(security_id=security_id, security_price=security_price,
+                                           security_amount=amount, transaction_type="Sell", market_id=market_id)
+            db.session.add(new_entry)
+            db.session.add(new_transaction)
             message = "Neues Angebot erfolgreich erstellt!"
-            db.session.add(newEntry)
 
         db.session.commit()
         return message, 200
@@ -541,6 +581,70 @@ def create_csv():
         mimetype='text/csv',
         headers={'Content-disposition': 'attachment; filename=data.csv'}
     )
+
+def serialize_time(obj):
+    if isinstance(obj, time):
+        return obj.strftime('%H:%M:%S')
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+@app.route('/market/excel-creation', methods=['GET', 'POST'])
+def excel_creation():
+    if request.method == 'POST':
+        file = request.files['excel-file']
+        if file:
+            markets = []
+            # Read the Excel file into a DataFrame
+            df = pd.read_excel(file)
+
+            for index, row in df.iterrows():
+                market_name = row['name']
+                currency = row['currency_id']
+                country = row['country']
+                fee = row['fee']
+                opens_at_str = row['opens_at']
+                closes_at_str = row['closes_at']
+
+
+                market_data = {
+                    'market_name': market_name,
+                    'opens_at': opens_at_str,
+                    'closes_at': closes_at_str,
+                    'market_currency_id': currency,
+                    'market_country': country,
+                    'market_fee': fee
+                }
+
+                markets.append(market_data)
+
+            markets_json = json.dumps(markets, default=serialize_time)
+
+            if not markets_json:
+                flash('No Excel File given!')
+                return redirect(url_for('excel_creation'))
+
+            markets_list = json.loads(markets_json)
+
+            if request.method == 'POST':
+                for market_data in markets_list:
+                    opens_at = time.fromisoformat(market_data['opens_at'])
+                    closes_at = time.fromisoformat(market_data['closes_at'])
+
+                    market_data['opens_at'] = opens_at
+                    market_data['closes_at'] = closes_at
+                    market_data.pop('id', None)
+                    # Transformiere das Wörterbuch zurück in ein Market-Objekt
+                    market = Market(**market_data)
+
+                    db.session.add(market)
+                db.session.commit()
+
+                flash('Successfully created markets!')
+                return redirect(url_for('index'))
+
+            return render_template("markets_created_xlsx.html", markets=markets_list)
+
+    return render_template("market_creation_xlsx.html")
+
 
 
 # ============================================================================================
