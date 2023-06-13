@@ -3,6 +3,7 @@
 
 {% block style %}
     {{ super() }}
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
 {% endblock %}
 
 
@@ -11,15 +12,21 @@
 
 {% block head %}
     {{ super() }}
+
     {% if title %}
     <title>{{ title }} - Boersenverwaltung</title>
     {% else %}
     <title>Welcome to Boersenverwaltung</title>
     {% endif %}
-
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
 {% endblock %}
 
 {% block body %}
+        <body style="background-image: url('/static/background.jpg');
+        background-size: 100%;
+        background-repeat: no-repeat;
+        background-attachment: fixed;"
+    >
      {% block scripts %}
         {{ super() }}
         <script>

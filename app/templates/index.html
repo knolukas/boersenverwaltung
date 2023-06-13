@@ -32,7 +32,7 @@
         <tbody>
             {% for market in markets %}
             <tr>
-                <td><a href="{{ url_for('market', market_id=market.market_id) }}">{{ market.market_name }}</a></td>
+                <td><a class="href-blue" href="{{ url_for('market', market_id=market.market_id) }}">{{ market.market_name }}</a></td>
                 <td>{{ market.market_id }}</td>
                 <td>{{ market.market_country }}</td>
                 <td class="currency">

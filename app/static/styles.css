@@ -1,0 +1,53 @@
+/* styles.css */
+
+body {
+    background-image: url("app/static/background.jpg");
+    background-size: auto 100%;
+    background-size: 100% auto;
+    background-color: rgba(0,0,0,0.5);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: #1D3557;
+    font-family: "Helvetica";
+}
+
+h1{
+    color: #1D3557;
+    margin-left: 5px;
+}
+
+.href-blue {
+    color: #1D3557;
+}
+
+.p {
+    text-align: left;
+    margin-left: auto;
+    margin-top: 0;
+    font-size: 20px
+}
+
+.href-blue:hover {
+    color: #4499D6;
+}
+
+.container {
+    width: 97%;
+    max-width: none;
+    text-align: left;
+    align-content: center;
+    margin-left: 1.5%;
+    margin-right: 0;
+}
+
+.chart-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+
+tr:hover {
+
+}
