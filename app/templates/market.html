@@ -51,66 +51,94 @@
         </tr>
     </table>
     <hr class="blue-line">
-    <table class="table table-hover transparent-table">
-         <thead>
-            <tr>
-                <th>Security Name</th>
-                <th>Security ID</th>
-                <th>Available Amount <button class="btn btn-info" onclick="window.location.reload();">Refresh</button> </th>
-                {# <th>Market Name (Noch ID)</th> #}
-                {# <th>Available Amount</th>#}
-                {# <th><a href="{{ url_for('refresh_offer', market_id=market.market_id)}}">Refresh-Button</a></th> #}
-            </tr>
-        </thead>
-        <tbody>
-            {% for offer in offer %}
-                <tr>
-                    <td>
-                        {% set ns = namespace(name = "<empty>") %} {# eine einfache variable ist nicht persistent, daher muss mit namespace gearbeitet werden #}
-                        {% for security in security_info %}
-                            {% if offer.security_id == security.id %}
-                                {% set ns.name = security.name %}
-                            {% endif %}
-                        {% endfor %}
-                        {{ ns.name }}
-                    </td>
-                    <td>{{ offer.security_id }}</td>
-                    <td>{{ offer.available_amount }} </td>
-                    {# <td>{{ offer.market_id }}</td> #}
-                    {# <td>{{ offer.amount }}</td>#}
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-<hr class="blue-line">
-    <div style="max-height: 200px; overflow-y: scroll;">
-         <table class="table transparent-table">
-             <thead">
-                <tr>
-                    <th>Transaction ID</th>
-                    <th>Timestamp</th>
-                    <th>Security Name (noch ID)</th>
-                    <th>Security Price</th>
-                    <th>Security Amount</th>
-                    <th>Transaction Type</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for transaction in transactions %}
+        <h4>Verfügbare Wertpapiere <button class="btn btn-info btn-sm" onclick="window.location.reload();">Refresh</button></h4>
+        <div style="max-width: 870px;">
+            <table class="table table-hover transparent-table">
+                 <thead>
                     <tr>
-                        <td>{{ transaction.transaction_id }}</td>
-                        <td>{{ transaction.timestamp }}</td>
-                        <td>{{ transaction.security_id }}</td>
-                        <td>{{ transaction.security_price }}</td>
-                        <td>{{ transaction.security_amount }}</td>
-                        <td>{{ transaction.transaction_type}}</td>
+                        <th>Security Name</th>
+                        <th>Security ID</th>
+                        <th>Available Amount</th>
+                        {# <th>Market ID</th> #}
+                        {# <th>Available Amount</th>#}
+                        {# <th><a href="{{ url_for('refresh_offer', market_id=market.market_id)}}">Refresh-Button</a></th> #}
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {% for offer in offer %}
+                        <tr>
+                            <td>
+                                {% set ns = namespace(name = "No data. Check Firmenverwaltung.") %} {# eine einfache variable ist nicht persistent, daher muss mit namespace gearbeitet werden #}
+                                {% for security in security_info %}
+                                    {% if offer.security_id == security.id %}
+                                        {% set ns.name = security.name %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ ns.name }}
+                            </td>
+                            <td>{{ offer.security_id }}</td>
+                            <td>{{ offer.available_amount }} </td>
+                            {# <td>{{ offer.market_id }}</td> #}
+                            {# <td>{{ offer.amount }}</td>#}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+<hr class="blue-line">
+    <div class="table-container">
+        <h4>Transaktionen der Börse</h4>
+        <div style="max-height: 200px; overflow-y: scroll">
+             <table class="table transparent-table sticky-header">
+                 <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Timestamp</th>
+                        <th>Security Name (noch ID)</th>
+                        <th>Security Price</th>
+                        <th>Security Amount</th>
+                        <th>Transaction Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.transaction_id }}</td>
+                            <td>{{ transaction.timestamp }}</td>
+                            <td>{{ transaction.security_id }}</td>
+                            <td>{{ transaction.security_price }}</td>
+                            <td>{{ transaction.security_amount }}</td>
+                            <td>{{ transaction.transaction_type}}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <h4>Meistgehandelte Unternehmen</h4>
+         <div style="max-width: 400px;">
+            <table class="table transparent-table">
+                 <thead>
+                    <tr>
+                        <th>Nummer</th>
+                        <th>Firmenname</th>
+                        <th>Menge</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for company_info in top_companies %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ company_info[1].name }}</td>
+                            <td>{{ company_info[1].count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+         </div>
     </div>
 </div>
-
-
 
 {% endblock %}

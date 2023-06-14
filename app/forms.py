@@ -49,7 +49,7 @@ class PostForm(FlaskForm):
 
 class CreateNewMarketForm(FlaskForm):
     market_name = StringField('Market Name', validators=[DataRequired()])
-    market_currency_id = SelectField('Currency ID', coerce=int, validators=[DataRequired()])
+    market_currency_id = SelectField('Currency', coerce=int, validators=[DataRequired()])
     market_country = StringField('Country', validators=[DataRequired()])
     market_fee = FloatField('Fee', validators=[DataRequired()])
     opens_at = TimeField('Opens At', validators=[DataRequired()])

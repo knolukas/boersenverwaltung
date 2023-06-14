@@ -64,3 +64,15 @@ title {
 .transparent-table {
         background-color: rgba(255, 255, 255, 0.4);
     }
+
+.table-container {
+    display: inline-block;
+    vertical-align: top;
+    margin-right: 60px;
+}
+
+.sticky-header thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f9f9f9;
+}

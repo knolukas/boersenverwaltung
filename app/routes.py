@@ -52,9 +52,14 @@ def count_companies(market_id):
     offers = Offer.query.filter_by(market_id=market_id).all()
     # TODO ANPASSEN
     url = "http://127.0.0.1:50051/firmen/wertpapiere"
-    security_info = requests.get(url)
-    security_info_json = security_info.json()
     company_list = []
+
+    try:
+        security_info = requests.get(url)
+        security_info_json = security_info.json()
+    except requests.exceptions.ConnectionError as e:
+        security_info_json = []
+        return "No data. Check Firmenverwaltung."
 
     for entry in offers:
         for security in security_info_json:
@@ -177,22 +182,6 @@ def user(username):
     return render_template('user.html', user=user, posts=posts)
 
 
-# @app.route('/edit_profile', methods=['GET', 'POST'])
-# @login_required
-# def edit_profile():
-#     form = EditProfileForm()
-#     if form.validate_on_submit():
-#         current_user.username = form.username.data
-#         current_user.about_me = form.about_me.data
-#         db.session.commit()
-#         flash('Your changes have been saved.')
-#         return redirect(url_for('edit_profile'))
-#     elif request.method == 'GET':
-#         form.username.data = current_user.username
-#         form.about_me.data = current_user.about_me
-#         return render_template('edit_profile.html', title='Edit Profile', form=form)
-
-
 @app.before_request
 def before_request():
     if current_user.is_authenticated:
@@ -230,8 +219,63 @@ def time_to_string(time_obj):
 def market(market_id):
     # TODO Wertpapier infos von Firmenverwaltung beschaffen
     url = "http://127.0.0.1:50051/firmen/wertpapiere"
-    security_info = requests.get(url)
-    security_info_json = security_info.json()
+    try:
+        security_info = requests.get(url)
+        security_info_json = security_info.json()
+    except requests.exceptions.ConnectionError as e:
+        security_info_json = []
+
+    transactions = Transactions.query.filter_by(market_id=market_id).all()
+    company_counts = {}
+
+    for transaction in transactions:
+        security_id = transaction.security_id
+        for security in security_info_json:
+            if security['id'] == security_id:
+                comp_id = security.get('comp_id')
+                if comp_id in company_counts:
+                    company_counts[comp_id]['count'] += transaction.security_amount
+                else:
+                    company_counts[comp_id] = {'count': transaction.security_amount}
+                    # company_counts[comp_id] = {'count': transaction.security_amount,
+                    #                            'price': transaction.security_price}
+    print(company_counts)
+    # Sortiere die Unternehmen nach der Anzahl der gehandelten Wertpapiere in absteigender Reihenfolge
+    top_companies = []
+    for comp_id in sorted(company_counts, key=lambda x: company_counts[x]['count'], reverse=True):
+        top_companies.append((comp_id, company_counts[comp_id]))
+
+    get_companies_url = "http://127.0.0.1:50051/firmen"
+    try:
+        companies_info = requests.get(get_companies_url)
+        companies_info_json = companies_info.json()
+    except requests.exceptions.ConnectionError as e:
+        companies_info_json = []
+
+    # nur die besten 3 wählen
+    top_3_companies = top_companies[:3]
+
+    top_3_companies_with_names = []
+    for comp_id, company_info in top_3_companies:
+        company_data = {'count': company_info['count'], 'name': None}
+        # company_data = {'count': company_info['count'], 'price': company_info['price'], 'name': None}
+        for company in companies_info_json:
+            if comp_id == company.get('id'):
+                company_data['name'] = company.get('company_name')
+                break
+        top_3_companies_with_names.append((comp_id, company_data))
+
+    print(top_3_companies_with_names)
+    while len(top_3_companies_with_names) < 3:
+        company_data = {'count': "-", 'name': "-"}
+        top_3_companies_with_names.append((None, company_data))
+    # for company_info in top_3_companies_with_names:
+    #     comp_id = company_info[0]
+    #     company_data = company_info[1]
+    #     print("Company ID:", comp_id)
+    #     print("Company Name:", company_data['name'])
+    #     print("Amount:", company_data['count'])
+    #     print("------------")
 
     # Abfragen in der eigenen Datenbank
     market = Market.query \
@@ -261,9 +305,7 @@ def market(market_id):
         .filter_by(market_currency_id=id) \
         .first()
 
-    print(offers)
-
-    json_data = None
+    json_data = {}
 
     if request.headers.get('Accept') == 'application/json':
         json_data = {
@@ -278,7 +320,8 @@ def market(market_id):
 
     # HTML Render Ausgabe
     return render_template('market.html', market=market, transactions=transactions,
-                           offer=offers, currency=currency, security_info=security_info_json)
+                           offer=offers, currency=currency, security_info=security_info_json,
+                           top_companies=top_3_companies_with_names)
 
 
 @app.route('/markets', methods=['GET'])
@@ -422,7 +465,7 @@ def buy(market_id):
 
             # info an den besitzer vom jeweiligen angebot in der liste
         data = {'id': offer.offer_id, 'typ': typ, 'amount': sold_amount, 'seller_id': id, 'fees': fees,
-                'currency': currency}
+                'price': security_price*sold_amount, 'currency': currency}
 
         response = requests.put(url, json=data)
         print("Nachricht an Seller: " + str(data) + ", Nachricht von Seller: " + str(response.json()))
@@ -582,10 +625,12 @@ def create_csv():
         headers={'Content-disposition': 'attachment; filename=data.csv'}
     )
 
+
 def serialize_time(obj):
     if isinstance(obj, time):
         return obj.strftime('%H:%M:%S')
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
 
 @app.route('/market/excel-creation', methods=['GET', 'POST'])
 def excel_creation():
@@ -593,7 +638,7 @@ def excel_creation():
         file = request.files['excel-file']
         if file:
             markets = []
-            # Read the Excel file into a DataFrame
+            # dataframe - aus pandas, für excel import und zur weiteren verwendung
             df = pd.read_excel(file)
 
             for index, row in df.iterrows():
@@ -603,7 +648,6 @@ def excel_creation():
                 fee = row['fee']
                 opens_at_str = row['opens_at']
                 closes_at_str = row['closes_at']
-
 
                 market_data = {
                     'market_name': market_name,
@@ -646,7 +690,6 @@ def excel_creation():
     return render_template("market_creation_xlsx.html")
 
 
-
 # ============================================================================================
 # ********************************************************************************************
 # Zur einmaligen Befüllung der Currencies:
@@ -669,6 +712,8 @@ def get_currencies():
     db.session.commit()
     return '', 200
 
+
+# TODO Nur 5 währungen EUR, USD, CHF, SEK, JPY
 
 # ============================================================================================
 # ********************************************************************************************
