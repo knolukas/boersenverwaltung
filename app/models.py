@@ -22,17 +22,6 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-
-class Post(db.Model):
-    id = Column(Integer, primary_key=True)
-    body = Column(String(140))
-    timestamp = Column(DateTime, index=True, default=datetime.utcnow)
-    user_id = Column(Integer, ForeignKey('user.id'))
-
-    def __repr__(self):
-        return '<Post {}>'.format(self.body)
-
-
 class Market(db.Model):
     market_id = Column(Integer, primary_key=True)
     market_name = Column(Text, unique=True, nullable=False)
