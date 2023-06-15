@@ -1,5 +1,2 @@
-1. Befehl:
-(venv) $ flask db migrate -m "new fields in user model" #kommentar in " "
-
-2. Befehl:
-(venv) $ flask db upgrade
+flask db migrate -m "new fields in user model" #kommentar in " "
+flask db upgrade

@@ -10,9 +10,7 @@ from sqlalchemy import Column, Integer, DateTime, Boolean, String, Float, Text, 
 class User(UserMixin, db.Model):
     id = Column(Integer, primary_key=True)
     username = Column(String(64), index=True, unique=True)
-    email = Column(String(120), index=True, unique=True)
     password_hash = Column(String(128))
-    last_seen = Column(DateTime, default=datetime.utcnow)
     admin_tag = Column(Boolean, default=False)
 
     def __repr__(self):
@@ -23,11 +21,6 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-
-    def avatar(self, size):
-        digest = md5(self.username.lower().encode('utf-8')).hexdigest()
-        return 'https://www.gravatar.com/avatar/{}?s={}'.format(
-            digest, size)
 
 
 class Post(db.Model):
