@@ -35,6 +35,7 @@
     {% endblock %}
 
 {% block content %}
+    <body>
 <div class="container-fluid">
 <div id="greeting"></div>
     <table>
@@ -58,6 +59,7 @@
                     <tr>
                         <th>Security Name</th>
                         <th>Security ID</th>
+                        <th>Security Price</th>
                         <th>Available Amount</th>
                         {# <th>Market ID</th> #}
                         {# <th>Available Amount</th>#}
@@ -68,14 +70,17 @@
                     {% for offer in offer %}
                         <tr>
                             <td>
-                                {% set ns = namespace(name = "No data. Check Firmenverwaltung.") %} {# eine einfache variable ist nicht persistent, daher muss mit namespace gearbeitet werden #}
-                                {% for security in security_info %}
-                                    {% if offer.security_id == security.id %}
-                                        {% set ns.name = security.name %}
-                                    {% endif %}
-                                {% endfor %}
-                                {{ ns.name }}
+                                {% if security_info is iterable %}
+                                    {% for security in security_info %}
+                                        {% if offer.security_id == security.id %}
+                                            {{ security.name }}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    Connection Error with FW
+                                {% endif %}
                             </td>
+                            <td>{{ offer.security_id }}</td>
                             <td>{{ offer.security_id }}</td>
                             <td>{{ offer.available_amount }} </td>
                             {# <td>{{ offer.market_id }}</td> #}
@@ -119,7 +124,7 @@
     <div class="table-container">
         <h4>Meistgehandelte Unternehmen</h4>
          <div style="max-width: 400px;">
-            <table class="table transparent-table">
+            <table class="table transparent-table sticky-header">
                  <thead>
                     <tr>
                         <th>Nummer</th>
@@ -128,17 +133,22 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for company_info in top_companies %}
-                        <tr>
-                            <td>{{ loop.index }}</td>
-                            <td>{{ company_info[1].name }}</td>
-                            <td>{{ company_info[1].count }}</td>
-                        </tr>
-                    {% endfor %}
+                    {% if top_companies is iterable %}
+                        {% for company_info in top_companies %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ company_info[1].name }}</td>
+                                <td>{{ company_info[1].count }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <td>Connection Error with FW</td>
+                    {% endif %}
                 </tbody>
             </table>
          </div>
     </div>
-</div>
 
+</div>
+</body>
 {% endblock %}

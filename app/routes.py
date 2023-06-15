@@ -28,19 +28,12 @@ def inject_datetime():
 @app.route('/index', methods=['GET', 'POST'])
 @login_required  # nur sichtbar für eingeloggte User
 def index():
-    # form = PostForm()
-    # if form.validate_on_submit():
-    #     post = Post(body=form.post.data, author=current_user)
-    #     db.session.add(post)
-    #     db.session.commit()
-    #     flash('Your post is now live!')
-    #     return redirect(url_for('index'))
-    # posts = Post.query.all()
     markets = Market.query.all()
     currencies = Currency.query.all()
 
     return render_template('index.html', title='Home', markets=markets, currencies=currencies,
-                           count_companies=count_companies, count_securities=count_securities)
+                           count_companies=count_companies, count_securities=count_securities,
+                           get_securities=get_securities)
 
 
 def count_securities(market_id):
@@ -50,16 +43,13 @@ def count_securities(market_id):
 
 def count_companies(market_id):
     offers = Offer.query.filter_by(market_id=market_id).all()
-    # TODO ANPASSEN
-    url = "http://127.0.0.1:50051/firmen/wertpapiere"
-    company_list = []
 
-    try:
-        security_info = requests.get(url)
-        security_info_json = security_info.json()
-    except requests.exceptions.ConnectionError as e:
-        security_info_json = []
-        return "No data. Check Firmenverwaltung."
+    if get_securities():
+        security_info_json = get_securities()
+    else:
+        return []
+
+    company_list = []
 
     for entry in offers:
         for security in security_info_json:
@@ -138,7 +128,7 @@ def delete_market(market_id):
         return redirect(url_for('index'))
     market = Market.query.get(market_id)
     securities = Offer.query.filter_by(market_id=market_id).all()
-    print(securities)
+
     if len(securities) > 0:
         flash('There are still securities available on the selected market! Cannot delete market.')
         return redirect(request.referrer or url_for('index'))
@@ -157,9 +147,9 @@ def edit_market(market_id):
         return redirect(url_for('index'))
 
     market = Market.query.get(market_id)
-    market_name = "test"
+
     form = EditMarketForm(obj=market)
-    # form.market_name.data = market.market_name
+
     if form.validate_on_submit():
         market.market_name = form.market_name.data
         market.market_currency_id = form.market_currency_id.data
@@ -186,7 +176,7 @@ def before_request():
 # GET Methods #
 # ********************************************************************************************
 # ============================================================================================
-@app.route('/markets/<market_id>/offer', methods=['GET'])  # login required???
+@app.route('/markets/<market_id>/offer', methods=['GET'])
 def get_market_offer(market_id):
     data = Offer.query.filter_by(market_id=market_id).all()
 
@@ -195,7 +185,6 @@ def get_market_offer(market_id):
     for entry in data:
         json_data.append({
             'security_id': entry.security_id,
-            # 'market_id': entry.market_id,
             'amount': entry.amount
         })
 
@@ -206,37 +195,7 @@ def time_to_string(time_obj):
     return time_obj.strftime('%H:%M:%S')
 
 
-@app.route('/markets/<market_id>', methods=['GET'])
-# @login_required
-def market(market_id):
-    # TODO Wertpapier infos von Firmenverwaltung beschaffen
-    url = "http://127.0.0.1:50051/firmen/wertpapiere"
-    try:
-        security_info = requests.get(url)
-        security_info_json = security_info.json()
-    except requests.exceptions.ConnectionError as e:
-        security_info_json = []
-
-    transactions = Transactions.query.filter_by(market_id=market_id).all()
-    company_counts = {}
-
-    for transaction in transactions:
-        security_id = transaction.security_id
-        for security in security_info_json:
-            if security['id'] == security_id:
-                comp_id = security.get('comp_id')
-                if comp_id in company_counts:
-                    company_counts[comp_id]['count'] += transaction.security_amount
-                else:
-                    company_counts[comp_id] = {'count': transaction.security_amount}
-                    # company_counts[comp_id] = {'count': transaction.security_amount,
-                    #                            'price': transaction.security_price}
-    print(company_counts)
-    # Sortiere die Unternehmen nach der Anzahl der gehandelten Wertpapiere in absteigender Reihenfolge
-    top_companies = []
-    for comp_id in sorted(company_counts, key=lambda x: company_counts[x]['count'], reverse=True):
-        top_companies.append((comp_id, company_counts[comp_id]))
-
+def get_comp_name(comp_id):
     get_companies_url = "http://127.0.0.1:50051/firmen"
     try:
         companies_info = requests.get(get_companies_url)
@@ -244,23 +203,76 @@ def market(market_id):
     except requests.exceptions.ConnectionError as e:
         companies_info_json = []
 
-    # nur die besten 3 wählen
-    top_3_companies = top_companies[:3]
-
-    top_3_companies_with_names = []
-    for comp_id, company_info in top_3_companies:
-        company_data = {'count': company_info['count'], 'name': None}
-        # company_data = {'count': company_info['count'], 'price': company_info['price'], 'name': None}
         for company in companies_info_json:
             if comp_id == company.get('id'):
-                company_data['name'] = company.get('company_name')
-                break
-        top_3_companies_with_names.append((comp_id, company_data))
+                return company.get('company_name')
 
-    print(top_3_companies_with_names)
-    while len(top_3_companies_with_names) < 3:
-        company_data = {'count': "-", 'name': "-"}
-        top_3_companies_with_names.append((None, company_data))
+    return "Not Found"
+
+
+@app.route('/markets/<market_id>', methods=['GET'])
+def market(market_id):
+    market = Market.query \
+        .filter_by(market_id=market_id) \
+        .first_or_404()
+
+    if request.headers.get('Accept') == 'application/json':
+        json_data = {
+            'market_id': market_id,
+            'market_name': market.market_name,
+            'opens_at': time_to_string(market.opens_at),
+            'closes_at': time_to_string(market.closes_at),
+            'market_currency_id': market.market_currency_id,
+            'market_fee': market.market_fee
+        }
+        return jsonify(json_data)
+
+    security_info_json = None
+    top_3_companies_with_names = None
+
+    if get_securities():
+        security_info_json = get_securities()
+
+        transactions = Transactions.query.filter_by(market_id=market_id).all()
+        company_counts = {}
+
+        for transaction in transactions:
+            security_id = transaction.security_id
+            for security in security_info_json:
+                if security['id'] == security_id:
+                    comp_id = security.get('comp_id')
+                    if comp_id in company_counts:
+                        company_counts[comp_id]['count'] += transaction.security_amount
+                    else:
+                        company_counts[comp_id] = {'count': transaction.security_amount}
+
+        # Sortiere die Unternehmen nach der Anzahl der gehandelten Wertpapiere in absteigender Reihenfolge
+        top_companies = []
+        for comp_id in sorted(company_counts, key=lambda x: company_counts[x]['count'], reverse=True):
+            top_companies.append((comp_id, company_counts[comp_id]))
+
+        get_companies_url = "http://127.0.0.1:50051/firmen"
+        try:
+            companies_info = requests.get(get_companies_url)
+            companies_info_json = companies_info.json()
+        except requests.exceptions.ConnectionError as e:
+            companies_info_json = []
+
+        # nur die besten 3 wählen
+        top_3_companies = top_companies[:3]
+
+        for comp_id, company_info in top_3_companies:
+            company_data = {'count': company_info['count'], 'name': None}
+            for company in companies_info_json:
+                if comp_id == company.get('id'):
+                    company_data['name'] = company.get('company_name')
+                    break
+            top_3_companies_with_names.append((comp_id, company_data))
+
+        while len(top_3_companies_with_names) < 3:
+            company_data = {'count': "-", 'name': "-"}
+            top_3_companies_with_names.append((None, company_data))
+
     # for company_info in top_3_companies_with_names:
     #     comp_id = company_info[0]
     #     company_data = company_info[1]
@@ -297,21 +309,8 @@ def market(market_id):
         .filter_by(market_currency_id=id) \
         .first()
 
-    json_data = {}
-
-    if request.headers.get('Accept') == 'application/json':
-        json_data = {
-            'market_id': market.market_id,
-            'market_name': market.market_name,
-            'opens_at': time_to_string(market.opens_at),
-            'closes_at': time_to_string(market.closes_at),
-            'market_currency_id': market.market_currency_id,
-            'market_fee': market.market_fee
-        }
-        return jsonify(json_data)
-
     # HTML Render Ausgabe
-    return render_template('market.html', market=market, transactions=transactions,
+    return render_template('market.html', title=market.market_name, market=market, transactions=transactions,
                            offer=offers, currency=currency, security_info=security_info_json,
                            top_companies=top_3_companies_with_names)
 
@@ -364,20 +363,6 @@ def markets_transactions():  # eventuell id von einer börse mitgeben
 # PUT Methods #
 # ********************************************************************************************
 # ============================================================================================
-def get_price(security_id):
-    get_url = 'http://127.0.0.1:50051/firmen/wertpapiere/{}'.format(security_id)
-
-    get_security_info = requests.get(get_url)
-
-    if get_security_info.status_code == 200:
-        get_data = get_security_info.json()
-        security_price = get_data['price']
-        return security_price
-
-    else:
-        return -1
-
-
 @app.route('/markets/<market_id>/buy', methods=['PUT'])
 # @login_required
 def buy(market_id):
@@ -395,12 +380,12 @@ def buy(market_id):
     security_id = data['security_id']
     amount = data['amount']
 
-    url = 'http://127.0.0.1:50051/firmen/wertpapier/{}/kauf'.format(
-        security_id)  # TODO anpassen an Port der Firmenverwaltung
-
     security_price = get_price(security_id)
     if security_price == -1:
         return "Fehler. Wertpapier nicht gefunden.", 400
+
+    if security_price == -2:
+        return "Verbindungsfehler. Check FW.", 400
 
     offers = Offer \
         .query \
@@ -438,6 +423,7 @@ def buy(market_id):
             typ = "Person"
             # TODO anpassen an DEPOT ID
             url = "http://127.0.0.1:50052/firmen/wertpapier/verkauf/" + str(id)
+            url = "http://127.0.0.1:50050/depot/wertpapier/verkauf/" + str(id)
 
         else:
             id = offers[i].company_id
@@ -457,9 +443,16 @@ def buy(market_id):
 
             # info an den besitzer vom jeweiligen angebot in der liste
         data = {'id': offer.offer_id, 'typ': typ, 'amount': sold_amount, 'seller_id': id, 'fees': fees,
-                'price': security_price*sold_amount, 'currency': currency}
+                'price': security_price * sold_amount, 'currency': currency}
 
-        response = requests.put(url, json=data)
+        try:
+            response = requests.put(url, json=data)
+        except requests.exceptions.ConnectionError as e:
+            return jsonify({'message': 'Es gab ein Problem mit der Verbindung. Kaufvorgang abgebrochen.'})
+
+        if response.status_code != 200:
+            return jsonify({'message': 'Es gab ein Problem mit der Anfrage. Kaufvorgang abgebrochen.'})
+
         print("Nachricht an Seller: " + str(data) + ", Nachricht von Seller: " + str(response.json()))
 
         i = i + 1
@@ -472,61 +465,38 @@ def buy(market_id):
     return jsonify({'message': 'Kauf war erfolgreich!'}), 200
 
 
-# @app.route('/markets/<market_id>/sell', methods=['PUT']) # ist  nicht mehr notwendig - da es nur angebote gibt und keine automatischen verkaufsvorgänge
-# # @login_required
-# def sell(market_id):
-#     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
-#
-#     data = request.json
-#     security_id = data['security_id']
-#     amount = data['amount']
-#
-#     entry = Offer.query.filter_by(market_id=market_id, security_id=security_id).first()
-#     url = 'http://127.0.0.1:50052/firmen/wertpapier/{}/verkauf'.format(
-#         security_id)  # anpassen an Port der Firmenverwaltung
-#
-#     get_url = 'http://127.0.0.1:50052/firmen/wertpapiere/{}'.format(security_id)
-#
-#     get_security_info = requests.get(get_url)
-#
-#     if get_security_info.status_code == 200:
-#         get_data = get_security_info.json()
-#         # print(get_data)
-#         for get_entry in get_data:
-#             security_price = get_entry['price']
-#
-#     else:
-#         return "Fehler. Wertpapier nicht gefunden.", 400
-#
-#     if entry:
-#         entry.amount = entry.amount + amount
-#         data["market_fee"] = market.market_fee
-#         response = requests.put(url, data=data, headers={'Content-Type': 'application/json'})
-#         print(data)
-#         if response.status_code == 200:
-#             newEntry = Transactions(security_id=security_id, security_price=security_price, security_amount=amount,
-#                                     transaction_type="Sell", market_id=market_id)
-#             db.session.add(newEntry)
-#             db.session.commit()
-#             return jsonify(data), 200
-#         else:
-#             db.session.rollback()
-#             return jsonify({'message': 'Fehler in der Anfrage!'}), 400
-#
-#     else:
-#         return jsonify({'message': 'Wertpapier wird an dieser Boerse nicht gehandelt!'}), 400
-
 # ============================================================================================
 # ********************************************************************************************
 # POST Methods #
 # ********************************************************************************************
 # ============================================================================================
+
+def create_offer_and_transaction(market_id, security_id, amount, company_id, depot_id, security_price):
+    new_entry = Offer(market_id=market_id, security_id=security_id, amount=amount,
+                      company_id=company_id, depot_id=depot_id)
+    new_transaction = Transactions(security_id=security_id, security_price=security_price,
+                                   security_amount=amount, transaction_type="Sell", market_id=market_id)
+    db.session.add(new_entry)
+    db.session.add(new_transaction)
+
+
 @app.route('/markets/<market_id>/offer', methods=['POST'])
 def refresh_offer(market_id):
     global message
     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
+
+    id = Market.query \
+        .filter_by(market_id=market_id) \
+        .first() \
+        .market_currency_id
+
+    currency_obj = Currency \
+        .query \
+        .filter_by(market_currency_id=id) \
+        .first()
+
     data = request.get_json()
-    print(data)
+
     if data is not None:
         if isinstance(data, list):
             # Daten sind eine Liste von Objekten
@@ -536,13 +506,11 @@ def refresh_offer(market_id):
                 company_id = entry.get('comp_id')  # TODO achtung auf Bezeichnung der Werte
                 depot_id = entry.get('depot_id')
                 security_price = entry.get('price')
+                currency = entry.get('currency')
+                if currency != currency_obj.market_currency_code:
+                    return "Währung der Boerse ist: " + str(currency.market_currency_code), 406
+                create_offer_and_transaction(market_id, security_id, amount, company_id, depot_id, security_price)
 
-                new_entry = Offer(market_id=market_id, security_id=security_id, amount=amount,
-                                  company_id=company_id, depot_id=depot_id)
-                new_transaction = Transactions(security_id=security_id, security_price=security_price * amount,
-                                               security_amount=amount, transaction_type="Sell", market_id=market_id)
-                db.session.add(new_entry)
-                db.session.add(new_transaction)
             message = str(len(data)) + ' neue Angebote wurden erfolgreich erstellt!'
 
         elif isinstance(data, dict):
@@ -552,13 +520,12 @@ def refresh_offer(market_id):
             company_id = data.get('comp_id')
             depot_id = data.get('depot_id')
             security_price = data.get('price')
+            currency = data.get('currency')
+            if currency != currency_obj.market_currency_code:
+                return "Währung der Boerse ist: " + str(currency_obj.market_currency_code), 400
 
-            new_entry = Offer(market_id=market_id, security_id=security_id, amount=amount,
-                              company_id=company_id, depot_id=depot_id)
-            new_transaction = Transactions(security_id=security_id, security_price=security_price,
-                                           security_amount=amount, transaction_type="Sell", market_id=market_id)
-            db.session.add(new_entry)
-            db.session.add(new_transaction)
+            create_offer_and_transaction(market_id, security_id, amount, company_id, depot_id, security_price)
+
             message = "Neues Angebot erfolgreich erstellt!"
 
         db.session.commit()
@@ -574,11 +541,14 @@ def refresh_offer(market_id):
 # ********************************************************************************************
 # ============================================================================================
 
-@app.route('/markets/create_csv')
+@app.route('/markets/create_csv', methods=['GET'])
 def create_csv():
-    url = "http://127.0.0.1:50051/firmen/wertpapiere"
-    security_info = requests.get(url)
-    security_info_json = security_info.json()
+    if not current_user.admin_tag:
+        flash("Insufficient permission!")
+        return redirect(url_for('index'))
+
+    security_info_json = get_securities()
+
     data = db.session.query(Market.market_name, Market.market_id, Offer.amount,
                             Offer.security_id) \
         .join(Offer, Market.market_id == Offer.market_id, isouter=True)
@@ -612,19 +582,11 @@ def create_csv():
         csv_text = csv_buffer.getvalue()
 
     return Response(
-        csv_text,
-        mimetype='text/csv',
-        headers={'Content-disposition': 'attachment; filename=data.csv'}
+        csv_text
     )
 
 
-def serialize_time(obj):
-    if isinstance(obj, time):
-        return obj.strftime('%H:%M:%S')
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
-
-@app.route('/market/excel-creation', methods=['GET', 'POST'])
+@app.route('/markets/excel_creation', methods=['GET', 'POST'])
 def excel_creation():
     if request.method == 'POST':
         file = request.files['excel-file']
@@ -680,6 +642,62 @@ def excel_creation():
             return render_template("markets_created_xlsx.html", markets=markets_list)
 
     return render_template("market_creation_xlsx.html")
+
+
+# ============================================================================================
+# ********************************************************************************************
+# Allgemeine Methoden
+# ********************************************************************************************
+# ============================================================================================
+def get_name(security_id):
+    get_url = 'http://127.0.0.1:50051/firmen/wertpapiere/{}'.format(security_id)
+
+    try:
+        get_security_info = requests.get(get_url)
+    except requests.exceptions.ConnectionError as e:
+        return -2
+
+    if get_security_info.status_code == 200:
+        get_data = get_security_info.json()
+        security_price = get_data['price']
+        return security_price
+
+    else:
+        return -1
+
+
+def get_price(security_id):
+    get_url = 'http://127.0.0.1:50051/firmen/wertpapiere/{}'.format(security_id)
+
+    try:
+        get_security_info = requests.get(get_url)
+    except requests.exceptions.ConnectionError as e:
+        return -2
+
+    if get_security_info.status_code == 200:
+        get_data = get_security_info.json()
+        security_price = get_data['price']
+        return security_price
+
+    else:
+        return -1
+
+
+def get_securities():
+    url = "http://127.0.0.1:50051/firmen/wertpapiere"
+    try:
+        security_info = requests.get(url)
+        security_info_json = security_info.json()
+    except requests.exceptions.ConnectionError as e:
+        return None
+
+    return security_info_json
+
+
+def serialize_time(obj):
+    if isinstance(obj, time):
+        return obj.strftime('%H:%M:%S')
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
 # ============================================================================================

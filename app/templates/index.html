@@ -1,11 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="container-fluid">
 
     {% if current_user.admin_tag %}
-        <h1>Admin Funktionen</h1>
         <div class="container-fluid">
+        <h1>Admin Funktionen</h1>
             <p> </p>
             <div class="row">
                 <div class="col">
@@ -22,77 +21,86 @@
         </div>
         <hr class="blue-line">
     {% endif %}
-    <h1>Market-Overview</h1>
+    <div class="container-fluid">
+        <h1>Market-Overview</h1>
 
-    <table class="table table-hover transparent-table" id="market-table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>ID</th>
-                <th>Country</th>
-                <th>Currency</th>
-                <th>Market-Fees
-                    <select id="currency-select">
-                        <option value="default">default</option>
+        <table class="table table-hover transparent-table" id="market-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>ID</th>
+                    <th>Country</th>
+                    <th>Currency</th>
+                    <th>Market-Fees
+                        <select id="currency-select">
+                            <option value="default">default</option>
+                            {% for currency in currencies %}
+                                <option value={{ currency.market_currency_code }}>
+                                    {{ currency.market_currency_code }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </th>
+                    <th>Number of Securities</th>
+                    <th>Number of Companies</th>
+                    <th>Opens at (CET)</th>
+                    <th>Closes at (CET)</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% set security_info = get_securities() %}
+                {% for market in markets %}
+                <tr>
+                    <td><a class="href-blue" href="{{ url_for('market', market_id=market.market_id) }}">{{ market.market_name }}</a></td>
+                    <td>{{ market.market_id }}</td>
+                    <td>{{ market.market_country }}</td>
+                    <td class="currency">
                         {% for currency in currencies %}
-                            <option value={{ currency.market_currency_code }}>
+                            {% if currency.market_currency_id == market.market_currency_id %}
                                 {{ currency.market_currency_code }}
-                            </option>
+                            {% endif %}
                         {% endfor %}
-                    </select>
-                </th>
-                <th>Number of Securities</th>
-                <th>Number of Companies</th>
-                <th>Opens at (CET)</th>
-                <th>Closes at (CET)</th>
-            </tr>
-        </thead>
+                    </td>
+                    <td class="fee-cell" data-original-value="{{ market.market_fee }}">
+                        {{ "%.2f" % market.market_fee }}
+                        {% for currency in currencies %}
+                            {% if currency.market_currency_id == market.market_currency_id %}
+                                {{ currency.market_currency_code }}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>{{ count_securities(market.market_id) }}</td>
 
-        <tbody>
-            {% for market in markets %}
-            <tr>
-                <td><a class="href-blue" href="{{ url_for('market', market_id=market.market_id) }}">{{ market.market_name }}</a></td>
-                <td>{{ market.market_id }}</td>
-                <td>{{ market.market_country }}</td>
-                <td class="currency">
-                    {% for currency in currencies %}
-                        {% if currency.market_currency_id == market.market_currency_id %}
-                            {{ currency.market_currency_code }}
-                        {% endif %}
-                    {% endfor %}
-                </td>
-                <td class="fee-cell" data-original-value="{{ market.market_fee }}">
-                    {{ "%.2f" % market.market_fee }}
-                    {% for currency in currencies %}
-                        {% if currency.market_currency_id == market.market_currency_id %}
-                            {{ currency.market_currency_code }}
-                        {% endif %}
-                    {% endfor %}
-                </td>
-                <td>{{ count_securities(market.market_id) }}</td>
-                <td>{{ count_companies(market.market_id) }}</td>
-                <td>{{ market.opens_at }}</td>
-                <td>{{ market.closes_at }}</td>
-                    {% if current_user.admin_tag %}
-                        <td>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <a class="btn btn-info btn-sm"
-                                    href="{{ url_for('edit_market',market_id = market.market_id) }}"
-                                    style="text-align: right; color: black">
-                                    bearbeiten
-                                </a>
-                                <a class="btn btn-danger btn-sm"
-                                    href="{{ url_for('delete_market',market_id = market.market_id) }}"
-                                    style="text-align: right; color: black">
-                                    löschen
-                                </a>
-                            </div>
-                        </td>
+                    {% if security_info is iterable %}
+                        <td>{{ count_companies(market.market_id) }}</td>
+                    {% else %}
+                        <td>Connection Error with FW</td>
                     {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+                    <td>{{ market.opens_at }}</td>
+                    <td>{{ market.closes_at }}</td>
+                        {% if current_user.admin_tag %}
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a class="btn btn-info btn-sm"
+                                        href="{{ url_for('edit_market',market_id = market.market_id) }}"
+                                        style="text-align: right; color: black">
+                                        bearbeiten
+                                    </a>
+                                    <a class="btn btn-danger btn-sm"
+                                        href="{{ url_for('delete_market',market_id = market.market_id) }}"
+                                        style="text-align: right; color: black">
+                                        löschen
+                                    </a>
+                                </div>
+                            </td>
+                        {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <script>
       var selectElement = document.getElementById('currency-select');
@@ -136,5 +144,4 @@
       }
     </script>
 
-    </div>
 {% endblock %}

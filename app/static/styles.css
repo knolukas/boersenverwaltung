@@ -1,8 +1,8 @@
 /* styles.css */
 
 body {
-    background-image: url("app/static/background.jpg");
-    background-size: auto;
+    background-image: url('/static/background.jpg');
+    background-size: 100%;
     background-color: rgba(255,255,255,1);
     background-repeat: no-repeat;
     background-attachment: fixed;
@@ -74,5 +74,5 @@ title {
 .sticky-header thead th {
     position: sticky;
     top: 0;
-    background-color: #f9f9f9;
+    background-color: rgba(255, 255, 255, 1);
 }

@@ -21,10 +21,7 @@
 {% endblock %}
 
 {% block body %}
-        <body style="background-image: url('/static/background.jpg');
-        background-size: 100%;
-        background-repeat: no-repeat;
-        background-attachment: fixed;">
+        <body>
      {% block scripts %}
         {{ super() }}
         <script>
@@ -52,7 +49,7 @@
         </script>
     {% endblock %}
 
-    <div>
+    <div class="container-fluid">
         <b>Boersenverwaltung - </b>
         <a href="{{ url_for('index') }}">Home</a>
         {% if current_user.is_anonymous %}

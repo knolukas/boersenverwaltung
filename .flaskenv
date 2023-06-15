@@ -1,1 +1,3 @@
 FLASK_APP=boerse.py
+FLASK_RUN_HOST=localhost
+FLASK_RUN_PORT=50052
