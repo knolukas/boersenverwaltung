@@ -58,12 +58,10 @@
                  <thead>
                     <tr>
                         <th>Security Name</th>
+                        <th>Company</th>
                         <th>Security ID</th>
                         <th>Security Price</th>
                         <th>Available Amount</th>
-                        {# <th>Market ID</th> #}
-                        {# <th>Available Amount</th>#}
-                        {# <th><a href="{{ url_for('refresh_offer', market_id=market.market_id)}}">Refresh-Button</a></th> #}
                     </tr>
                 </thead>
                 <tbody>
@@ -71,20 +69,13 @@
                         <tr>
                             <td>
                                 {% if security_info is iterable %}
-                                    {% for security in security_info %}
-                                        {% if offer.security_id == security.id %}
-                                            {{ security.name }}
-                                        {% endif %}
-                                    {% endfor %}
-                                {% else %}
-                                    Connection Error with FW
+                                    {{ get_name(offer.security_id) }}
                                 {% endif %}
                             </td>
+                            <td>{{ get_comp_name_from_sec(offer.security_id) }}</td>
                             <td>{{ offer.security_id }}</td>
-                            <td>{{ offer.security_id }}</td>
+                            <td>{{ get_price(offer.security_id) }} {{ currency.market_currency_code }}</td>
                             <td>{{ offer.available_amount }} </td>
-                            {# <td>{{ offer.market_id }}</td> #}
-                            {# <td>{{ offer.amount }}</td>#}
                         </tr>
                     {% endfor %}
                 </tbody>

@@ -4,9 +4,7 @@
 
     {% if current_user.admin_tag %}
         <div class="container-fluid">
-        <h1>Admin Funktionen</h1>
-            <p> </p>
-            <div class="row">
+            <div class="row" style="margin-left: 0px">
                 <div class="col">
                     <a href="{{ url_for('createmarket') }}" class="btn btn-primary">Create a New Market</a>
                     <a href="{{ url_for('create_csv') }}" class="btn btn-primary">Export Markets to CSV</a>

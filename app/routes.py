@@ -195,25 +195,17 @@ def time_to_string(time_obj):
     return time_obj.strftime('%H:%M:%S')
 
 
-def get_comp_name(comp_id):
-    get_companies_url = "http://127.0.0.1:50051/firmen"
-    try:
-        companies_info = requests.get(get_companies_url)
-        companies_info_json = companies_info.json()
-    except requests.exceptions.ConnectionError as e:
-        companies_info_json = []
 
-        for company in companies_info_json:
-            if comp_id == company.get('id'):
-                return company.get('company_name')
-
-    return "Not Found"
 
 
 @app.route('/markets/<market_id>', methods=['GET'])
 def market(market_id):
     market = Market.query \
         .filter_by(market_id=market_id) \
+        .first_or_404()
+
+    currency = Currency.query\
+        .filter_by(market_currency_id=market.market_currency_id)\
         .first_or_404()
 
     if request.headers.get('Accept') == 'application/json':
@@ -223,12 +215,12 @@ def market(market_id):
             'opens_at': time_to_string(market.opens_at),
             'closes_at': time_to_string(market.closes_at),
             'market_currency_id': market.market_currency_id,
-            'market_fee': market.market_fee
+            'market_fee': market.market_fee,
+            'market_currency_code': currency.market_currency_code
         }
         return jsonify(json_data)
 
     security_info_json = None
-    top_3_companies_with_names = None
 
     if get_securities():
         security_info_json = get_securities()
@@ -245,43 +237,26 @@ def market(market_id):
                         company_counts[comp_id]['count'] += transaction.security_amount
                     else:
                         company_counts[comp_id] = {'count': transaction.security_amount}
-
+        print(security_info_json)
         # Sortiere die Unternehmen nach der Anzahl der gehandelten Wertpapiere in absteigender Reihenfolge
         top_companies = []
         for comp_id in sorted(company_counts, key=lambda x: company_counts[x]['count'], reverse=True):
             top_companies.append((comp_id, company_counts[comp_id]))
 
-        get_companies_url = "http://127.0.0.1:50051/firmen"
-        try:
-            companies_info = requests.get(get_companies_url)
-            companies_info_json = companies_info.json()
-        except requests.exceptions.ConnectionError as e:
-            companies_info_json = []
 
         # nur die besten 3 wählen
         top_3_companies = top_companies[:3]
+        top_3_companies_with_names = []
 
         for comp_id, company_info in top_3_companies:
-            company_data = {'count': company_info['count'], 'name': None}
-            for company in companies_info_json:
-                if comp_id == company.get('id'):
-                    company_data['name'] = company.get('company_name')
-                    break
+            company_data = {'count': company_info['count'], 'name': get_comp_name(comp_id)}
+
             top_3_companies_with_names.append((comp_id, company_data))
 
         while len(top_3_companies_with_names) < 3:
             company_data = {'count': "-", 'name': "-"}
             top_3_companies_with_names.append((None, company_data))
 
-    # for company_info in top_3_companies_with_names:
-    #     comp_id = company_info[0]
-    #     company_data = company_info[1]
-    #     print("Company ID:", comp_id)
-    #     print("Company Name:", company_data['name'])
-    #     print("Amount:", company_data['count'])
-    #     print("------------")
-
-    # Abfragen in der eigenen Datenbank
     market = Market.query \
         .filter_by(market_id=market_id) \
         .first_or_404()
@@ -312,7 +287,8 @@ def market(market_id):
     # HTML Render Ausgabe
     return render_template('market.html', title=market.market_name, market=market, transactions=transactions,
                            offer=offers, currency=currency, security_info=security_info_json,
-                           top_companies=top_3_companies_with_names)
+                           top_companies=top_3_companies_with_names, get_name=get_name, get_price=get_price,
+                           get_comp_name=get_comp_name, get_comp_name_from_sec=get_comp_name_from_sec)
 
 
 @app.route('/markets', methods=['GET'])
@@ -357,7 +333,20 @@ def markets_transactions():  # eventuell id von einer börse mitgeben
 
     return jsonify(json_data)
 
+@app.route('/markets/currency', methods=['GET'])
+# @login_required
+def markets_currencies():  # eventuell id von einer börse mitgeben
+    currencies = Currency.query.all()
+    json_data = []
 
+    for entry in currencies:
+        json_data.append({
+            'market_currency_id': entry.market_currency_id,
+            'market_currency_name': entry.market_currency_name,
+            'market_currency_code': entry.market_currency_code,
+        })
+
+    return jsonify(json_data)
 # ============================================================================================
 # ********************************************************************************************
 # PUT Methods #
@@ -381,10 +370,10 @@ def buy(market_id):
     amount = data['amount']
 
     security_price = get_price(security_id)
-    if security_price == -1:
+    if security_price == "Not found":
         return "Fehler. Wertpapier nicht gefunden.", 400
 
-    if security_price == -2:
+    if security_price == "Not found - Check FW.":
         return "Verbindungsfehler. Check FW.", 400
 
     offers = Offer \
@@ -543,9 +532,6 @@ def refresh_offer(market_id):
 
 @app.route('/markets/create_csv', methods=['GET'])
 def create_csv():
-    if not current_user.admin_tag:
-        flash("Insufficient permission!")
-        return redirect(url_for('index'))
 
     security_info_json = get_securities()
 
@@ -582,12 +568,18 @@ def create_csv():
         csv_text = csv_buffer.getvalue()
 
     return Response(
-        csv_text
+        csv_text,
+        mimetype='text/csv',
+        headers={'Content-disposition': 'attachment; filename=market_overview.csv'}
     )
 
 
 @app.route('/markets/excel_creation', methods=['GET', 'POST'])
 def excel_creation():
+    if not current_user.admin_tag:
+        flash("Insufficient permission!")
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
         file = request.files['excel-file']
         if file:
@@ -659,11 +651,11 @@ def get_name(security_id):
 
     if get_security_info.status_code == 200:
         get_data = get_security_info.json()
-        security_price = get_data['price']
-        return security_price
+        security_name = get_data['name']
+        return security_name
 
     else:
-        return -1
+        return "Not found."
 
 
 def get_price(security_id):
@@ -672,15 +664,15 @@ def get_price(security_id):
     try:
         get_security_info = requests.get(get_url)
     except requests.exceptions.ConnectionError as e:
-        return -2
+        return "Not found - Check FW."
 
     if get_security_info.status_code == 200:
         get_data = get_security_info.json()
         security_price = get_data['price']
-        return security_price
+        return round(security_price, 2)
 
     else:
-        return -1
+        return "Not found"
 
 
 def get_securities():
@@ -693,6 +685,46 @@ def get_securities():
 
     return security_info_json
 
+
+def get_comp_name_from_sec(security_id):
+    get_companies_url = "http://127.0.0.1:50051/firmen"
+
+    try:
+        companies_info = requests.get(get_companies_url)
+        companies_info_json = companies_info.json()
+    except requests.exceptions.ConnectionError as e:
+        companies_info_json = []
+
+    print(companies_info_json)
+    securities = get_securities()
+
+    comp_id = -1
+
+    for security in securities:
+        if security['id'] == security_id:
+            comp_id = security.get('comp_id')
+
+    for company in companies_info_json:
+        if comp_id == company.get('id'):
+            return company.get('company_name')
+
+    return "Not Found"
+
+def get_comp_name(comp_id):
+    get_companies_url = "http://127.0.0.1:50051/firmen"
+    try:
+        companies_info = requests.get(get_companies_url)
+        companies_info_json = companies_info.json()
+    except requests.exceptions.ConnectionError as e:
+        companies_info_json = []
+
+    print(companies_info_json)
+
+    for company in companies_info_json:
+        if comp_id == company.get('id'):
+            return company.get('company_name')
+
+    return "Not Found"
 
 def serialize_time(obj):
     if isinstance(obj, time):
