@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
+    {% if get_securities() is not iterable %}
+        <div class="container-fluid">
+            <p class="yellow-background">
+                <b>***NO CONNECTION TO FIRMENVERWALTUNG***</b>
+            </p>
+        </div>
+    {% endif %}
 
     {% if current_user.admin_tag %}
         <div class="container-fluid">
@@ -47,7 +54,6 @@
             </thead>
 
             <tbody>
-                {% set security_info = get_securities() %}
                 {% for market in markets %}
                 <tr>
                     <td><a class="href-blue" href="{{ url_for('market', market_id=market.market_id) }}">{{ market.market_name }}</a></td>
@@ -70,10 +76,10 @@
                     </td>
                     <td>{{ count_securities(market.market_id) }}</td>
 
-                    {% if security_info is iterable %}
+                    {% if get_securities() is iterable %}
                         <td>{{ count_companies(market.market_id) }}</td>
                     {% else %}
-                        <td>Connection Error with FW</td>
+                        <td>Not found.</td>
                     {% endif %}
 
                     <td>{{ market.opens_at }}</td>

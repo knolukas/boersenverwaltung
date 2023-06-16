@@ -35,7 +35,15 @@
     {% endblock %}
 
 {% block content %}
-    <body>
+
+    {% if security_info is not iterable %}
+        <div class="container-fluid">
+            <p class="yellow-background">
+                <b>***NO CONNECTION TO FIRMENVERWALTUNG***</b>
+            </p>
+        </div>
+    {% endif %}
+
 <div class="container-fluid">
 <div id="greeting"></div>
     <table>
@@ -70,11 +78,25 @@
                             <td>
                                 {% if security_info is iterable %}
                                     {{ get_name(offer.security_id) }}
+                                {% else %}
+                                    Not found.
                                 {% endif %}
                             </td>
-                            <td>{{ get_comp_name_from_sec(offer.security_id) }}</td>
+                            <td>
+                                {% if security_info is iterable %}
+                                    {{ get_comp_name_from_sec(offer.security_id) }}
+                                {% else %}
+                                    Not found.
+                                {% endif %}
+                            </td>
                             <td>{{ offer.security_id }}</td>
-                            <td>{{ get_price(offer.security_id) }} {{ currency.market_currency_code }}</td>
+                            <td>
+                                {% if security_info is iterable %}
+                                     {{ get_price(offer.security_id) }} {{ currency.market_currency_code }}
+                                {% else %}
+                                    Not found.
+                                {% endif %}
+                            </td>
                             <td>{{ offer.available_amount }} </td>
                         </tr>
                     {% endfor %}
@@ -133,13 +155,12 @@
                             </tr>
                         {% endfor %}
                     {% else %}
-                        <td>Connection Error with FW</td>
+                        <td>Not found.</td>
                     {% endif %}
                 </tbody>
             </table>
          </div>
     </div>
-
 </div>
-</body>
+
 {% endblock %}

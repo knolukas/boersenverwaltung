@@ -6,16 +6,15 @@ body {
     background-color: rgba(255,255,255,1);
     background-repeat: no-repeat;
     background-attachment: fixed;
-    color: #1D3557;
-    font-family: "Helvetica", serif;
-}
-
-h1{
-    color: #1D3557;
 }
 
 .href-blue {
     color: #1D3557;
+}
+
+.yellow-background {
+        background-color: yellow;
+        padding: 10px;
 }
 
 .p {

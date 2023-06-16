@@ -1,22 +1,19 @@
 import csv
 import io
 import json
+from datetime import datetime, time
 
 import pandas as pd
 import requests
-from sqlalchemy import select, column, func
-from sqlalchemy.orm import query
+from flask import render_template, flash, redirect, url_for, request, jsonify, Response
+from flask_login import current_user, login_user, logout_user
+from flask_login import login_required
+from sqlalchemy import func
+from werkzeug.urls import url_parse
 
 from app import app, db
-from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, CreateNewMarketForm, EditMarketForm
-from flask import render_template, flash, redirect, url_for, request, jsonify, Response, session
-from flask_login import current_user, login_user, logout_user
+from app.forms import LoginForm, RegistrationForm, CreateNewMarketForm, EditMarketForm
 from app.models import User, Market, Transactions, Offer, Currency
-from flask_login import login_required
-from werkzeug.urls import url_parse
-from datetime import datetime, time
-
-import sqlite3
 
 
 @app.context_processor
@@ -47,7 +44,7 @@ def count_companies(market_id):
     if get_securities():
         security_info_json = get_securities()
     else:
-        return []
+        return None
 
     company_list = []
 
@@ -121,7 +118,7 @@ def createmarket():
     return render_template('create_market.html', title='Create Market', form=form)
 
 
-@app.route('/deletemarket/<market_id>')
+@app.route('/deletemarket/<market_id>', methods=['GET'])
 def delete_market(market_id):
     if not current_user.admin_tag:
         flash("Insufficient permission!")
@@ -160,6 +157,7 @@ def edit_market(market_id):
         db.session.commit()
         flash('Your changes have been saved.')
         return redirect(url_for('index'))
+
     elif request.method == 'GET':
         return render_template('edit_market.html', title='Edit Market', form=form)
 
@@ -256,6 +254,8 @@ def market(market_id):
         while len(top_3_companies_with_names) < 3:
             company_data = {'count': "-", 'name': "-"}
             top_3_companies_with_names.append((None, company_data))
+    else:
+        top_3_companies_with_names = None
 
     market = Market.query \
         .filter_by(market_id=market_id) \
@@ -353,7 +353,6 @@ def markets_currencies():  # eventuell id von einer börse mitgeben
 # ********************************************************************************************
 # ============================================================================================
 @app.route('/markets/<market_id>/buy', methods=['PUT'])
-# @login_required
 def buy(market_id):
     market = Market.query.filter_by(market_id=market_id).first_or_404(description="Börse nicht gefunden!")
 
@@ -553,9 +552,10 @@ def create_csv():
 
     for result in results:
         security_name = None
-        for security in security_info_json:
-            if result.security_id == security['id']:
-                security_name = security['name']
+        if security_info_json:
+            for security in security_info_json:
+                if result.security_id == security['id']:
+                    security_name = security['name']
 
         csv_writer.writerow([
             result.market_name,
@@ -682,7 +682,7 @@ def get_securities():
         security_info_json = security_info.json()
     except requests.exceptions.ConnectionError as e:
         return None
-
+    print(security_info_json)
     return security_info_json
 
 
@@ -695,18 +695,17 @@ def get_comp_name_from_sec(security_id):
     except requests.exceptions.ConnectionError as e:
         companies_info_json = []
 
-    print(companies_info_json)
     securities = get_securities()
 
     comp_id = -1
+    if securities:
+        for security in securities:
+            if security['id'] == security_id:
+                comp_id = security.get('comp_id')
 
-    for security in securities:
-        if security['id'] == security_id:
-            comp_id = security.get('comp_id')
-
-    for company in companies_info_json:
-        if comp_id == company.get('id'):
-            return company.get('company_name')
+        for company in companies_info_json:
+            if comp_id == company.get('id'):
+                return company.get('company_name')
 
     return "Not Found"
 
