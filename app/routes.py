@@ -467,7 +467,7 @@ def delete_market(security_id):
     db.session.commit()
 
     flash('Offer: "' + offer.offer_id + '" gelöscht!')
-    return "Offer gelöscht!", 400
+    return "Offer gelöscht!", 200
 def create_offer_and_transaction(market_id, security_id, amount, company_id, depot_id, security_price):
     new_entry = Offer(market_id=market_id, security_id=security_id, amount=amount,
                       company_id=company_id, depot_id=depot_id)
