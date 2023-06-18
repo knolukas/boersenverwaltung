@@ -457,7 +457,7 @@ def buy(market_id):
 # POST Methods #
 # ********************************************************************************************
 # ============================================================================================
-@app.route('/deleteoffer/<security_id>', methods=['GET'])
+@app.route('/deleteoffer/<security_id>', methods=['POST'])
 def delete_market(security_id):
 
     offer = Offer.query.get(security_id)
