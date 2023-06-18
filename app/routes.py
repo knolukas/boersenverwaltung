@@ -457,6 +457,17 @@ def buy(market_id):
 # POST Methods #
 # ********************************************************************************************
 # ============================================================================================
+@app.route('/deleteoffer/<security_id>', methods=['GET'])
+def delete_market(security_id):
+
+    offer = Offer.query.get(security_id)
+
+
+    db.session.delete(offer)
+    db.session.commit()
+
+    flash('Offer: "' + offer.offer_id + '" gelöscht!')
+    return redirect(request.referrer or url_for('index'))
 
 def create_offer_and_transaction(market_id, security_id, amount, company_id, depot_id, security_price):
     new_entry = Offer(market_id=market_id, security_id=security_id, amount=amount,
