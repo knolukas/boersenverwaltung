@@ -410,7 +410,6 @@ def buy(market_id):
             id = offers[i].depot_id
             typ = "Person"
             # TODO anpassen an DEPOT ID
-            url = "http://127.0.0.1:50052/firmen/wertpapier/verkauf/" + str(id)
             url = "http://127.0.0.1:50050/depot/wertpapier/verkauf/" + str(id)
 
         else:
