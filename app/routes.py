@@ -414,7 +414,7 @@ def buy(market_id):
             url = "http://127.0.0.1:50050/depot/wertpapier/verkauf/" + str(id)
 
         else:
-            id = offers[i].company_id
+            id = offers[i].security_id
             typ = "Company"
             url = "http://127.0.0.1:50051/firmen/wertpapier/verkauf/" + str(id)
 
@@ -436,12 +436,12 @@ def buy(market_id):
         try:
             response = requests.put(url, json=data)
         except requests.exceptions.ConnectionError as e:
-            return jsonify({'message': 'Es gab ein Problem mit der Verbindung. Kaufvorgang abgebrochen.'})
+            return jsonify({'message': 'Es gab ein Problem mit der Verbindung. Kaufvorgang abgebrochen.'}), 404
 
         if response.status_code != 200:
-            return jsonify({'message': 'Es gab ein Problem mit der Anfrage. Kaufvorgang abgebrochen.'})
+            return jsonify({'message': 'Es gab ein Problem mit der Anfrage. Kaufvorgang abgebrochen.'}), 404
 
-        print("Nachricht an Seller: " + str(data) + ", Nachricht von Seller: " + str(response.json()))
+        print("Nachricht an Seller: " + str(data) + ", Nachricht von Seller: " + str(response))
 
         i = i + 1
 
