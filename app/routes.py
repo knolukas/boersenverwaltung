@@ -302,12 +302,17 @@ def markets_all():
         if market_id not in json_data:
             json_data[market_id] = []
 
+        currency = Currency.query\
+            .filter_by(market_currency_id=entry.market_currency_id)\
+            .first_or_404()
+
         json_data[market_id].append({
             'market_id': entry.market_id,
             'market_name': entry.market_name,
             'opens_at': time_to_string(entry.opens_at),
             'closes_at': time_to_string(entry.closes_at),
             'market_currency_id': entry.market_currency_id,
+            'market_currency_code': currency.market_currency_code,
             'market_fee': entry.market_fee
         })
 
