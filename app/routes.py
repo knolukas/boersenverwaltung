@@ -646,8 +646,6 @@ def excel_creation():
                 flash('Successfully created markets!')
                 return redirect(url_for('index'))
 
-            return render_template("markets_created_xlsx.html", markets=markets_list)
-
     return render_template("market_creation_xlsx.html")
 
 
