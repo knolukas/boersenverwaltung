@@ -190,7 +190,7 @@ def get_market_offer(market_id):
 
 
 def time_to_string(time_obj):
-    return time_obj.strftime('%H:%M:%S')
+    return time_obj.strftime('%Y-%m-%d %H:%M:%S')
 
 
 
