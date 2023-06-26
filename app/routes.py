@@ -409,7 +409,7 @@ def buy(market_id):
     i = 0
     sold_amount = 0
 
-    while amount > 0 or i < len(offers):
+    while amount > 0 and i < len(offers):
         offer = Offer.query.get(offers[i].offer_id)
         if offers[i].company_id is None:
             id = offers[i].depot_id
@@ -449,7 +449,7 @@ def buy(market_id):
 
         i = i + 1
 
-    newEntry = Transactions(security_id=security_id, security_price=security_price, security_amount=sold_amount,
+        newEntry = Transactions(security_id=security_id, security_price=security_price, security_amount=sold_amount,
                             transaction_type="Buy", market_id=market_id)
     db.session.add(newEntry)
     db.session.commit()
